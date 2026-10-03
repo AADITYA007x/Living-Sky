@@ -72,6 +72,8 @@ html, body {
 
 .credit {
   position: fixed;
+  z-index: 1;
+  white-space: nowrap;
   top: calc(1.45rem + env(safe-area-inset-top, 0px));
   right: max(1.25rem, env(safe-area-inset-right, 0px));
   font-size: 0.8rem;
@@ -101,4 +103,180 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .title { animation: none; opacity: 0.9; }
   .hint, .status { transition: none; }
+}
+
+/* Selection ring */
+.ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.ring span {
+  position: absolute;
+  left: -17px;
+  top: -17px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--atlas);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(1.8);
+}
+
+.ring.is-visible span {
+  animation: ring-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+@keyframes ring-in {
+  to { opacity: 0.75; transform: scale(1); }
+}
+
+/* Star panel */
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(25rem, 100vw);
+  padding: calc(4.5rem + env(safe-area-inset-top, 0px)) 2.25rem calc(2.5rem + env(safe-area-inset-bottom, 0px)) 2.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: linear-gradient(to right, rgba(3, 5, 11, 0) 0%, rgba(3, 5, 11, 0.82) 22%, rgba(3, 5, 11, 0.94) 100%);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(1.5rem);
+  transition: opacity 0.6s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1), visibility 0s linear 0.7s;
+  z-index: 5;
+}
+
+.panel.is-open {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.6s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1), visibility 0s;
+}
+
+.panel-close {
+  position: absolute;
+  top: calc(1.2rem + env(safe-area-inset-top, 0px));
+  right: 1.2rem;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  transition: color 0.3s ease, background 0.3s ease;
+}
+
+.panel-close:hover { color: var(--starlight); background: rgba(230, 234, 245, 0.06); }
+.panel-close:focus-visible { outline: 1px solid var(--atlas); outline-offset: 2px; }
+
+.panel-body { max-width: 34ch; margin-left: auto; }
+
+.panel-name {
+  margin: 0;
+  font-size: 2.6rem;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.005em;
+}
+
+.panel-sub {
+  margin: 0.4rem 0 0;
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--dim);
+}
+
+.panel-origin {
+  margin: 1.4rem 0 0;
+  font-size: 1.08rem;
+  line-height: 1.5;
+  color: var(--starlight);
+  opacity: 0.85;
+}
+
+.panel-light {
+  margin: 1.6rem 0 0;
+  padding-left: 1rem;
+  border-left: 1px solid var(--atlas);
+  font-size: 1.2rem;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--atlas);
+}
+
+.panel-facts {
+  margin: 1.9rem 0 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 6.2rem 1fr;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.fact dt {
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--faint);
+}
+
+.fact dd {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
+.fact-note {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  color: var(--dim);
+}
+
+.panel-fact {
+  margin: 2rem 0 0;
+  font-size: 1.08rem;
+  line-height: 1.55;
+}
+
+.panel-meta {
+  margin: 1.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--faint);
+}
+
+@media (max-width: 719px) {
+  .panel {
+    top: auto;
+    left: 0;
+    width: 100%;
+    max-height: 56vh;
+    padding: 1.75rem 1.5rem calc(2rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to bottom, rgba(3, 5, 11, 0) 0%, rgba(3, 5, 11, 0.9) 3.5rem, rgba(3, 5, 11, 0.97) 100%);
+    transform: translateY(1.5rem);
+  }
+  .panel-close { top: 1.4rem; right: 0.9rem; }
+  .panel-body { max-width: none; margin: 0; padding-top: 1.25rem; }
+  .panel-name { font-size: 2.1rem; padding-right: 2.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel, .panel.is-open { transition: none; transform: none; }
+  .ring.is-visible span { animation: none; opacity: 0.75; transform: none; }
 }

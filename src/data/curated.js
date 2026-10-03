@@ -1,0 +1,138 @@
+// Hand-written notes for well-known stars, keyed by Hipparcos number.
+// radius: in solar radii. distance: light-years, used when the catalog value
+// is known to be uncertain or superseded. Ranges reflect published disagreement.
+export const CURATED = {
+  32349: {
+    name: 'Sirius',
+    origin: 'From the Greek Seirios, “glowing” or “scorching”.',
+    fact: 'Sirius has a faint white dwarf companion, Sirius B, first seen in 1862. It packs about the mass of the Sun into a body roughly the size of Earth.',
+    radius: { value: 1.7 },
+  },
+  30438: {
+    name: 'Canopus',
+    origin: 'Named after Canopus, the helmsman of King Menelaus’s ship in Greek legend. In India it is Agastya, after the sage.',
+    fact: 'Spacecraft have used Canopus as a fixed reference point for keeping their orientation, because it is bright and lies far from the Sun’s path across the sky.',
+    radius: { value: 71 },
+    distance: { ly: 310, min: 300, max: 320 },
+  },
+  69673: {
+    name: 'Arcturus',
+    origin: 'From the Greek Arktouros, “guardian of the bear”, as it follows the Great Bear across the sky.',
+    fact: 'Light from Arcturus was used to switch on the lights of the 1933 Chicago World’s Fair. At the time, that light was thought to have left the star around the previous Chicago fair in 1893.',
+    radius: { value: 25 },
+  },
+  91262: {
+    name: 'Vega',
+    origin: 'From the Arabic al-nasr al-wāqiʿ, “the swooping eagle”.',
+    fact: 'Because Earth’s axis slowly wobbles, Vega was the northern pole star around 12,000 BCE and will be again in roughly 12,000 years.',
+    radius: { min: 2.4, max: 2.8, note: 'It spins so fast that its equator bulges outward.' },
+  },
+  24608: {
+    name: 'Capella',
+    origin: 'Latin for “little she-goat”.',
+    fact: 'Capella is really two yellow giant stars orbiting each other about every 104 days, too close together to separate with an ordinary telescope.',
+    radius: { min: 9, max: 12, note: 'The two giants differ in size.' },
+  },
+  24436: {
+    name: 'Rigel',
+    origin: 'From the Arabic rijl, “foot”: it marks the foot of the giant Orion.',
+    fact: 'Rigel is labeled Beta Orionis, yet it is usually brighter than Betelgeuse, which is labeled Alpha.',
+    radius: { value: 79 },
+    distance: { ly: 860, min: 770, max: 960, note: 'Distance estimates for Rigel still vary by more than 10%.' },
+  },
+  37279: {
+    name: 'Procyon',
+    origin: 'From the Greek “before the dog”: it rises shortly before Sirius, the Dog Star.',
+    fact: 'Like Sirius, Procyon has a white dwarf companion, Procyon B, the dense leftover core of a star that has already died.',
+    radius: { value: 2.0 },
+  },
+  27989: {
+    name: 'Betelgeuse',
+    origin: 'From the Arabic yad al-jawzāʾ, “the hand of al-Jawzāʾ”. A misreading of the Arabic letters turned “Yad” into “Bet”.',
+    fact: 'In 2019–2020 Betelgeuse faded noticeably in what became known as the Great Dimming. Astronomers traced it to a cloud of dust the star had thrown off, which blocked part of its light.',
+    radius: { min: 700, max: 1000, note: 'Placed where the Sun is, it would reach past the orbit of Mars.' },
+    distance: { ly: 550, min: 500, max: 725, note: 'Betelgeuse’s distance is debated. Its huge, shifting surface makes parallax hard to measure.' },
+  },
+  7588: {
+    name: 'Achernar',
+    origin: 'From the Arabic ākhir an-nahr, “the end of the river”, the river being the constellation Eridanus.',
+    fact: 'Achernar spins so fast that it is one of the most flattened stars known: its equator bulges far out beyond its poles.',
+    radius: { min: 7, max: 11, note: 'Smaller pole to pole, larger across the equator.' },
+  },
+  97649: {
+    name: 'Altair',
+    origin: 'From the Arabic al-nasr al-ṭāʾir, “the flying eagle”.',
+    fact: 'Altair turns once about every nine hours, and was the first ordinary star like it to have its surface imaged directly. In East Asian legend it is the cowherd, separated from the weaver Vega by the Milky Way.',
+    radius: { min: 1.6, max: 2.0, note: 'Its fast spin flattens it.' },
+  },
+  21421: {
+    name: 'Aldebaran',
+    origin: 'From the Arabic al-dabarān, “the follower”, as it follows the Pleiades across the sky.',
+    fact: 'Aldebaran appears to sit in the Hyades star cluster, but it is not a member. It lies at less than half the cluster’s distance, in front of it.',
+    radius: { value: 44 },
+  },
+  80763: {
+    name: 'Antares',
+    origin: 'From the Greek anti-Ares, “rival of Mars”, for its red color.',
+    fact: 'When Mars passes near Antares, the two can look strikingly similar: a red planet next to a red supergiant hundreds of times wider than the Sun.',
+    radius: { min: 680, max: 700 },
+    distance: { ly: 550, min: 470, max: 620, note: 'Antares’s distance is uncertain.' },
+  },
+  65474: {
+    name: 'Spica',
+    origin: 'Latin for “ear of grain”, held in the hand of Virgo.',
+    fact: 'Spica is two hot stars orbiting each other in about four days, so close that their gravity pulls each into an egg shape.',
+    radius: { value: 7.5, note: 'The larger of the pair.' },
+    distance: { ly: 250, min: 240, max: 260 },
+  },
+  37826: {
+    name: 'Pollux',
+    origin: 'One of the twins of Greek myth, Polydeuces in Greek. Its neighbor Castor is the other.',
+    fact: 'Pollux has a confirmed planet, a gas giant a few times the mass of Jupiter, announced in 2006.',
+    radius: { value: 9 },
+  },
+  113368: {
+    name: 'Fomalhaut',
+    origin: 'From the Arabic fam al-ḥūt, “mouth of the fish”.',
+    fact: 'Fomalhaut is circled by a vast ring of dusty debris. An object first announced as a planet inside it turned out to be most likely an expanding cloud of dust.',
+    radius: { value: 1.8 },
+  },
+  102098: {
+    name: 'Deneb',
+    origin: 'From the Arabic dhanab, “tail”: it marks the tail of Cygnus, the swan.',
+    fact: 'Deneb is one of the most luminous stars visible to the naked eye. To look as bright as it does from so far away, it must outshine the Sun tens of thousands of times over.',
+    radius: { value: 200, note: 'Uncertain, because the distance is uncertain.' },
+    distance: { ly: 2600, min: 1500, max: 2600, note: 'Deneb’s distance is poorly known. Published estimates span roughly 1,500 to 2,600 light-years.' },
+  },
+  49669: {
+    name: 'Regulus',
+    origin: 'Latin for “little king”, a name popularized by Copernicus.',
+    fact: 'Regulus spins once about every 16 hours, close to the speed at which it would start flinging itself apart.',
+    radius: { min: 3.1, max: 4.2, note: 'Its fast spin flattens it.' },
+  },
+  11767: {
+    name: 'Polaris',
+    origin: 'From the Latin stella polaris, “pole star”.',
+    fact: 'Polaris is not exactly at the celestial pole, but less than a degree from it. It will be closest around the year 2100, and then slowly drift away as Earth’s axis wobbles.',
+    radius: { min: 37, max: 46 },
+    distance: { ly: 440, min: 320, max: 450, note: 'Polaris’s distance is debated between different methods.' },
+  },
+  71683: {
+    name: 'Rigil Kentaurus',
+    origin: 'From the Arabic rijl qanṭūris, “foot of the centaur”. Better known as Alpha Centauri.',
+    fact: 'This is the nearest star system to the Sun. Its third member, the faint red dwarf Proxima Centauri, is the single closest star to us.',
+    radius: { value: 1.2 },
+  },
+  65378: {
+    name: 'Mizar',
+    origin: 'From the Arabic miʾzar, “girdle” or “waist cloth”.',
+    fact: 'Mizar and its faint neighbor Alcor have long been a test of good eyesight. Through a telescope Mizar itself splits in two, and it was the first double star discovered that way.',
+    radius: { value: 2.4 },
+  },
+  14576: {
+    name: 'Algol',
+    origin: 'From the Arabic raʾs al-ghūl, “the demon’s head”.',
+    fact: 'Every 2.87 days Algol visibly dims for several hours, as a dimmer companion star passes in front of the brighter one.',
+    radius: { value: 2.7 },
+  },
+};

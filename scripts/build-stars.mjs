@@ -15,7 +15,7 @@ const SOURCE_URL = 'https://www.astronexus.com/downloads/catalogs/hygdata_v42.cs
 
 const MAG_LIMIT = 6.5;
 const PC_TO_LY = 3.261563777;
-const FIELDS = ['ra', 'dec', 'mag', 'ci', 'distLy', 'proper', 'bf', 'con', 'spect', 'hip', 'lum', 'id'];
+const FIELDS = ['ra', 'dec', 'mag', 'ci', 'distLy', 'proper', 'bayer', 'flam', 'con', 'spect', 'hip', 'hd', 'lum', 'id'];
 
 async function ensureRaw() {
   if (fs.existsSync(RAW_FILE)) return;
@@ -78,7 +78,7 @@ async function main() {
   const header = parseLine(lines[0]).map((h) => h.trim());
   const col = Object.fromEntries(header.map((h, i) => [h, i]));
 
-  const required = ['id', 'ra', 'dec', 'mag', 'ci', 'dist', 'proper', 'bf', 'con', 'spect', 'hip', 'lum'];
+  const required = ['id', 'ra', 'dec', 'mag', 'ci', 'dist', 'proper', 'bayer', 'flam', 'con', 'spect', 'hip', 'hd', 'lum'];
   const missing = required.filter((c) => !(c in col));
   if (missing.length) throw new Error(`Catalog is missing columns: ${missing.join(', ')}`);
 
@@ -105,10 +105,12 @@ async function main() {
       round(num(f[col.ci]), 3),
       distLy,
       str(f[col.proper]),
-      str(f[col.bf]),
+      str(f[col.bayer]),
+      num(f[col.flam]),
       str(f[col.con]),
       str(f[col.spect]),
       num(f[col.hip]),
+      num(f[col.hd]),
       sig(num(f[col.lum]), 4),
       id,
     ]);

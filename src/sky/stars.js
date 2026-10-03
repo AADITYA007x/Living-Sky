@@ -16,18 +16,28 @@ const vertexShader = /* glsl */ `
 
   varying vec3 vColor;
   varying float vAlpha;
+  varying float vSize;
+  varying float vCore;
+  varying float vHalo;
 
   void main() {
-    // Brightest stars (mag ~ -1.5) -> 1, naked-eye limit (6.5) -> 0
+    // Brightest stars (mag ~ -1.5) -> 0, naked-eye limit (6.5) -> 1
     float t = clamp((aMag + 1.5) / 8.0, 0.0, 1.0);
-    float size = mix(15.0, 3.2, pow(t, 0.55));
-    float alpha = mix(1.0, 0.32, t);
+    float scale = uZoom * uPixelRatio;
+
+    float size = mix(34.0, 4.0, pow(t, 0.45)) * scale;
+    float core = mix(3.0, 0.75, pow(t, 0.75)) * scale;
+    float halo = mix(0.30, 0.0, pow(t, 0.5));
+    float alpha = mix(1.0, 0.2, pow(t, 0.85));
 
     float twinkle = 1.0 + uTwinkle * sin(uTime * (1.3 + aSeed * 2.1) + aSeed * 40.0) * 0.06;
 
     vColor = aColor;
     vAlpha = alpha * twinkle * uOpacity;
-    gl_PointSize = size * uZoom * uPixelRatio;
+    vSize = size;
+    vCore = core;
+    vHalo = halo;
+    gl_PointSize = size;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -35,17 +45,22 @@ const vertexShader = /* glsl */ `
 const fragmentShader = /* glsl */ `
   varying vec3 vColor;
   varying float vAlpha;
+  varying float vSize;
+  varying float vCore;
+  varying float vHalo;
 
   void main() {
     vec2 p = gl_PointCoord - 0.5;
-    float d2 = dot(p, p) * 4.0;
-    if (d2 > 1.0) discard;
+    float d = length(p) * 2.0;
+    if (d > 1.0) discard;
 
-    float core = exp(-d2 * 14.0);
-    float halo = exp(-d2 * 3.5) * 0.22;
-    float a = (core + halo) * vAlpha;
+    float rPx = d * vSize * 0.5;
+    float core = exp(-pow(rPx / vCore, 2.0));
+    float halo = exp(-pow(d / 0.38, 2.0)) * vHalo;
+    float edge = 1.0 - smoothstep(0.75, 1.0, d);
 
-    vec3 color = mix(vColor, vec3(1.0), core * 0.55);
+    float a = (core + halo) * vAlpha * edge;
+    vec3 color = mix(vColor, vec3(1.0), core * 0.3);
     gl_FragColor = vec4(color, a);
   }
 `;
@@ -107,6 +122,10 @@ export function createStarField(data, { pixelRatio = 1 } = {}) {
   return {
     points,
     count,
+    rows,
+    fieldIndex: f,
+    positions,
+    mags,
     setPixelRatio(pr) {
       material.uniforms.uPixelRatio.value = pr;
     },

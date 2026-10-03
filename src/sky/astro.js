@@ -39,7 +39,7 @@ export function temperatureToRGB(kelvin) {
 
 // Star color for display: blackbody hue, softened toward white,
 // because the eye sees star colors as gentle tints, not saturated hues.
-export function bvToDisplayRGB(bv, softness = 0.22) {
+export function bvToDisplayRGB(bv, softness = 0.08) {
   const rgb = temperatureToRGB(bvToTemperature(bv ?? 0.6));
   const mixed = rgb.map((c) => c * (1 - softness) + softness);
   const max = Math.max(...mixed);

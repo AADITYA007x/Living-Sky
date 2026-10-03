@@ -24,6 +24,7 @@ export class SkyControls {
     this.onFirstInteraction = null;
     this._interacted = false;
     this._target = new THREE.Vector3();
+    this.flight = null;
 
     dom.addEventListener('pointerdown', this._onDown);
     dom.addEventListener('pointermove', this._onMove);
@@ -47,7 +48,27 @@ export class SkyControls {
     return Math.hypot(a.x - b.x, a.y - b.y);
   }
 
+  // Smoothly turn the view so (raDeg, decDeg) sits at the given screen offset.
+  // offsetY is a fraction of the field of view (positive = target appears higher).
+  flyTo(raDeg, decDeg, { fov = null, offsetY = 0, duration = 1.4 } = {}) {
+    const endFov = fov ?? this.targetFov;
+    let endLon = raDeg * DEG;
+    const endLat = clampLat(decDeg * DEG - offsetY * endFov * DEG);
+    let dLon = endLon - this.lon;
+    dLon = ((dLon + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+    endLon = this.lon + dLon;
+    this.velLon = 0;
+    this.velLat = 0;
+    this.flight = {
+      t: 0,
+      duration,
+      from: { lon: this.lon, lat: this.lat, fov: this.targetFov },
+      to: { lon: endLon, lat: endLat, fov: endFov },
+    };
+  }
+
   _onDown = (e) => {
+    this.flight = null;
     this.dom.setPointerCapture(e.pointerId);
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.velLon = 0;
@@ -99,12 +120,21 @@ export class SkyControls {
   _onWheel = (e) => {
     e.preventDefault();
     const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    this.flight = null;
     this.targetFov = clampFov(this.targetFov * Math.exp(delta * 0.0012));
     this._markInteracted();
   };
 
   update(dt) {
-    if (this.pointers.size === 0) {
+    if (this.flight) {
+      const fl = this.flight;
+      fl.t = Math.min(fl.t + dt / fl.duration, 1);
+      const e = fl.t < 0.5 ? 4 * fl.t ** 3 : 1 - (-2 * fl.t + 2) ** 3 / 2;
+      this.lon = fl.from.lon + (fl.to.lon - fl.from.lon) * e;
+      this.lat = fl.from.lat + (fl.to.lat - fl.from.lat) * e;
+      this.targetFov = fl.from.fov + (fl.to.fov - fl.from.fov) * e;
+      if (fl.t >= 1) this.flight = null;
+    } else if (this.pointers.size === 0) {
       this.lon += this.velLon * dt;
       this.lat = clampLat(this.lat + this.velLat * dt);
       const decay = Math.exp(-dt * 3.5);
