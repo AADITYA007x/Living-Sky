@@ -3,12 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#03040a" />
+    <meta name="theme-color" content="#03050b" />
+    <meta name="description" content="An interactive map of the night sky." />
     <title>Living Sky</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+    />
   </head>
   <body>
-    <canvas id="sky"></canvas>
-    <div class="title">Living Sky</div>
+    <canvas id="sky" aria-label="Interactive star map"></canvas>
+
+    <h1 class="title">Living Sky</h1>
+    <p class="hint">Drag to look around. Scroll or pinch to zoom.</p>
+    <p class="status" role="status"></p>
+
+    <a class="credit" href="https://www.astronexus.com/projects/hyg" target="_blank" rel="noopener">
+      Star data: HYG Database v4.2, CC BY-SA 4.0
+    </a>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
