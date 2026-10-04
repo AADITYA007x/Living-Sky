@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { raDecToVector, bvToDisplayRGB } from './astro.js';
+import { focusGLSL, focusUniforms } from './focus.js';
+import { CON_INDEX } from '../data/constellations.js';
 
 export const SKY_RADIUS = 100;
 
@@ -7,18 +9,21 @@ const vertexShader = /* glsl */ `
   attribute float aMag;
   attribute vec3 aColor;
   attribute float aSeed;
+  attribute float aCon;
 
   uniform float uPixelRatio;
   uniform float uZoom;
   uniform float uOpacity;
   uniform float uTime;
   uniform float uTwinkle;
+  uniform float uDim;
 
   varying vec3 vColor;
   varying float vAlpha;
   varying float vSize;
   varying float vCore;
   varying float vHalo;
+  ${focusGLSL}
 
   void main() {
     // Brightest stars (mag ~ -1.5) -> 0, naked-eye limit (6.5) -> 1
@@ -32,8 +37,12 @@ const vertexShader = /* glsl */ `
 
     float twinkle = 1.0 + uTwinkle * sin(uTime * (1.3 + aSeed * 2.1) + aSeed * 40.0) * 0.06;
 
+    // Stars outside the focused constellation fade back
+    float inFocus = focusAmount(aCon);
+    float dimmed = mix(1.0, 0.28, uDim);
+
     vColor = aColor;
-    vAlpha = alpha * twinkle * uOpacity;
+    vAlpha = alpha * twinkle * uOpacity * mix(dimmed, 1.0, inFocus);
     vSize = size;
     vCore = core;
     vHalo = halo;
@@ -74,6 +83,7 @@ export function createStarField(data, { pixelRatio = 1 } = {}) {
   const colors = new Float32Array(count * 3);
   const mags = new Float32Array(count);
   const seeds = new Float32Array(count);
+  const cons = new Float32Array(count);
 
   for (let i = 0; i < count; i++) {
     const s = rows[i];
@@ -89,6 +99,7 @@ export function createStarField(data, { pixelRatio = 1 } = {}) {
 
     mags[i] = s[f.mag];
     seeds[i] = Math.random();
+    cons[i] = CON_INDEX[s[f.con]] ?? -10;
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -96,6 +107,7 @@ export function createStarField(data, { pixelRatio = 1 } = {}) {
   geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('aMag', new THREE.BufferAttribute(mags, 1));
   geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+  geometry.setAttribute('aCon', new THREE.BufferAttribute(cons, 1));
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -103,6 +115,8 @@ export function createStarField(data, { pixelRatio = 1 } = {}) {
     vertexShader,
     fragmentShader,
     uniforms: {
+      ...focusUniforms(),
+      uDim: { value: 0 },
       uPixelRatio: { value: pixelRatio },
       uZoom: { value: 1 },
       uOpacity: { value: 0 },
@@ -126,12 +140,16 @@ export function createStarField(data, { pixelRatio = 1 } = {}) {
     fieldIndex: f,
     positions,
     mags,
+    conIndexOf(index) {
+      return cons[index];
+    },
     setPixelRatio(pr) {
       material.uniforms.uPixelRatio.value = pr;
     },
-    update(dt, fov) {
+    update(dt, fov, focus) {
       elapsed += dt;
       const u = material.uniforms;
+      if (focus) focus.apply(u);
       u.uTime.value = elapsed;
       u.uZoom.value = Math.min(Math.max(Math.pow(60 / fov, 0.35), 0.8), 2.6);
       u.uOpacity.value = reducedMotion ? 1 : Math.min(1, u.uOpacity.value + dt / 2.5);

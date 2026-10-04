@@ -6,6 +6,7 @@
   --atlas: #c8b38a;
   --serif: "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --edge: max(1.25rem, env(safe-area-inset-left, 0px));
+  --edge-r: max(1.25rem, env(safe-area-inset-right, 0px));
 }
 
 * { box-sizing: border-box; }
@@ -32,6 +33,7 @@ html, body {
 
 #sky:active { cursor: grabbing; }
 
+/* Title, hint, status */
 .title {
   position: fixed;
   top: calc(1.1rem + env(safe-area-inset-top, 0px));
@@ -41,7 +43,6 @@ html, body {
   font-weight: 400;
   font-style: italic;
   letter-spacing: 0.01em;
-  color: var(--starlight);
   opacity: 0;
   animation: appear 2.4s ease 0.6s forwards;
   pointer-events: none;
@@ -70,39 +71,76 @@ html, body {
 .hint.is-hidden { opacity: 0; transition-delay: 0s; }
 .status.is-visible { opacity: 1; color: var(--atlas); }
 
-.credit {
+/* Credits */
+.credits {
   position: fixed;
+  top: calc(1.35rem + env(safe-area-inset-top, 0px));
+  right: var(--edge-r);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
   z-index: 1;
-  white-space: nowrap;
-  top: calc(1.45rem + env(safe-area-inset-top, 0px));
-  right: max(1.25rem, env(safe-area-inset-right, 0px));
+}
+
+.credits a {
   font-size: 0.8rem;
   color: var(--faint);
   text-decoration: none;
-  opacity: 0.8;
+  white-space: nowrap;
   transition: color 0.3s ease;
 }
 
-.credit:hover,
-.credit:focus-visible { color: var(--dim); }
+.credits a:hover,
+.credits a:focus-visible { color: var(--dim); }
+.credits a:focus-visible { outline: 1px solid var(--atlas); outline-offset: 3px; }
 
-.credit:focus-visible {
-  outline: 1px solid var(--atlas);
-  outline-offset: 3px;
+/* Constellation toggle */
+.toggle-lines {
+  position: fixed;
+  left: var(--edge);
+  bottom: calc(1.3rem + env(safe-area-inset-bottom, 0px));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.85rem 0.45rem 0.7rem;
+  border: 1px solid rgba(138, 147, 171, 0.22);
+  border-radius: 999px;
+  background: rgba(3, 5, 11, 0.55);
+  color: var(--faint);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: color 0.4s ease, border-color 0.4s ease;
+  z-index: 2;
 }
 
-@media (max-width: 520px) {
-  .title { font-size: 1.35rem; }
-  .credit { font-size: 0.72rem; max-width: 11rem; text-align: right; }
+.toggle-lines[hidden] { display: none; }
+.toggle-lines:hover { color: var(--dim); }
+.toggle-lines[aria-pressed="true"] { color: var(--atlas); border-color: rgba(200, 179, 138, 0.4); }
+.toggle-lines:focus-visible { outline: 1px solid var(--atlas); outline-offset: 2px; }
+
+/* Constellation labels */
+.labels {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
-@keyframes appear {
-  to { opacity: 0.9; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .title { animation: none; opacity: 0.9; }
-  .hint, .status { transition: none; }
+.con-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 1.05rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  color: var(--atlas);
+  white-space: nowrap;
+  opacity: 0;
+  will-change: transform, opacity;
+  user-select: none;
 }
 
 /* Selection ring */
@@ -202,7 +240,6 @@ html, body {
   margin: 1.4rem 0 0;
   font-size: 1.08rem;
   line-height: 1.5;
-  color: var(--starlight);
   opacity: 0.85;
 }
 
@@ -262,6 +299,11 @@ html, body {
 }
 
 @media (max-width: 719px) {
+  .title { font-size: 1.35rem; }
+  .credits a { font-size: 0.72rem; }
+  .hint { bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px)); }
+  .toggle-lines { font-size: 0.95rem; }
+
   .panel {
     top: auto;
     left: 0;
@@ -276,7 +318,13 @@ html, body {
   .panel-name { font-size: 2.1rem; padding-right: 2.5rem; }
 }
 
+@keyframes appear {
+  to { opacity: 0.9; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .title { animation: none; opacity: 0.9; }
+  .hint, .status { transition: none; }
   .panel, .panel.is-open { transition: none; transform: none; }
   .ring.is-visible span { animation: none; opacity: 0.75; transform: none; }
 }

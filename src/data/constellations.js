@@ -90,9 +90,12 @@ export const CONSTELLATIONS = {
   Vul: ['Vulpecula', 'Vulpeculae'],
 };
 
+export const CON_INDEX = Object.fromEntries(Object.keys(CONSTELLATIONS).map((k, i) => [k, i]));
+
 export const GREEK = {
   Alp: 'Alpha', Bet: 'Beta', Gam: 'Gamma', Del: 'Delta', Eps: 'Epsilon', Zet: 'Zeta',
   Eta: 'Eta', The: 'Theta', Iot: 'Iota', Kap: 'Kappa', Lam: 'Lambda', Mu: 'Mu',
   Nu: 'Nu', Xi: 'Xi', Omi: 'Omicron', Pi: 'Pi', Rho: 'Rho', Sig: 'Sigma',
   Tau: 'Tau', Ups: 'Upsilon', Phi: 'Phi', Chi: 'Chi', Psi: 'Psi', Ome: 'Omega',
 };
+
