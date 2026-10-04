@@ -6,7 +6,7 @@ import { pickStar, projectToScreen } from './sky/picking.js';
 import { getStar, describeStar } from './sky/describe.js';
 import { createConstellations, ConstellationLabels } from './sky/constellations.js';
 import { FocusState } from './sky/focus.js';
-import { CON_INDEX } from './data/constellations.js';
+import { CON_INDEX, ENGLISH, ALIASES } from './data/constellations.js';
 import { StarPanel } from './ui/panel.js';
 import { Telescope } from './ui/telescope.js';
 import { Gallery } from './ui/gallery.js';
@@ -23,6 +23,9 @@ import { TimeBar } from './ui/timebar.js';
 import { EPOCH, currentYear, polesAt, formatEra } from './sky/timetravel.js';
 import { resolveIndianSky } from './data/indian.js';
 import { IndianSky, indianLore } from './ui/indian.js';
+import { SkySearch, normalize } from './ui/search.js';
+import { raDecToVector } from './sky/astro.js';
+import { resolveAsterisms } from './data/asterisms.js';
 
 const canvas = document.querySelector('#sky');
 const hint = document.querySelector('.hint');
@@ -70,6 +73,8 @@ let constellations = null;
 let labels = null;
 let markers = null;
 let indianSky = null;
+let conDataRef = null;
+let observationsRef = [];
 let indianResolved = null;
 const indianToggle = document.querySelector('.indian-toggle');
 let selected = -1;
@@ -95,6 +100,7 @@ const timebar = new TimeBar(document.querySelector('.timebar'), timeButton, {
 const isNarrow = () => window.innerWidth < 720;
 
 function select(index, { center = null } = {}) {
+  hideConToast();
   selected = index;
   const star = getStar(field, index);
   const info = describeStar(star);
@@ -186,7 +192,13 @@ canvas.addEventListener('pointerup', (e) => {
     touch: e.pointerType === 'touch',
   });
   if (index >= 0) select(index);
-  else panel.close();
+  else {
+    panel.close();
+    if (selected < 0 && focus.focus >= 0) {
+      focus.setFocus(-1);
+      hideConToast();
+    }
+  }
 });
 canvas.addEventListener('pointercancel', (e) => presses.delete(e.pointerId));
 
@@ -231,6 +243,7 @@ async function loadSky() {
 
   try {
     const conData = await loadJson('constellations.json');
+    conDataRef = conData;
     constellations = createConstellations(conData, field);
     scene.add(constellations.group);
     labels = new ConstellationLabels(labelRoot, constellations.labels);
@@ -284,19 +297,196 @@ showIntro(document.querySelector('.intro'), {
   },
 });
 
+// Search
+const conToast = document.querySelector('.con-toast');
+let toastTimer = 0;
+function hideConToast() {
+  conToast.classList.remove('is-visible');
+  clearPattern?.();
+}
+
+const toRaDec = (v) => ({
+  ra: ((Math.atan2(-v.z, v.x) * 180) / Math.PI + 360) % 360,
+  dec: (Math.asin(Math.max(-1, Math.min(1, v.y))) * 180) / Math.PI,
+});
+
+function showConstellation(abbr) {
+  const c = conDataRef?.constellations?.[abbr];
+  const ci = CON_INDEX[abbr];
+  if (!c || ci === undefined) return;
+  // Centre and size from the official boundary
+  const pts = c.bounds.flat().map(([ra, dec]) => new THREE.Vector3(...raDecToVector(ra, dec, 1)));
+  const center = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).normalize();
+  const radius = Math.max(...pts.map((p) => center.angleTo(p))) * (180 / Math.PI);
+  const { ra, dec } = toRaDec(center);
+  panel.close();
+  focus.setFocus(ci);
+  controls.flyTo(ra, dec, { fov: Math.min(100, Math.max(18, radius * 2.3)), offsetY: timebar.isOpen ? 0.12 : 0 });
+
+  const f = field.fieldIndex;
+  const brightest = field.rows.findIndex((r) => r[f.con] === abbr);
+  const indian = indianToggle.getAttribute('aria-pressed') === 'true';
+  conToast.innerHTML = '<p class="con-toast-name"></p><p class="con-toast-sub"></p>';
+  conToast.querySelector('.con-toast-name').textContent = CONSTELLATIONS[abbr][0];
+  conToast.querySelector('.con-toast-sub').textContent = [ENGLISH[abbr], c.hi && indian ? c.hi : null].filter(Boolean).join(' · ');
+  if (brightest >= 0) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'con-toast-star';
+    b.textContent = `Brightest star: ${describeStar(getStar(field, brightest)).name}`;
+    b.addEventListener('click', () => {
+      hideConToast();
+      select(brightest);
+    });
+    conToast.append(b);
+  }
+  conToast.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideConToast, 9000);
+}
+
+// Gold rings that briefly mark the stars of a searched pattern
+const patternLayer = document.querySelector('.pattern-layer');
+let patternRings = [];
+let patternTimer = 0;
+function clearPattern() {
+  patternLayer.classList.remove('is-visible');
+  clearTimeout(patternTimer);
+}
+
+function showAsterism(a) {
+  const dirs = a.indices.map((i) => new THREE.Vector3().fromArray(field.dirs, i * 3));
+  const center = dirs.reduce((s, d) => s.add(d), new THREE.Vector3()).normalize();
+  const radius = Math.max(...dirs.map((d) => center.angleTo(d))) * (180 / Math.PI);
+  const { ra, dec } = toRaDec(center);
+  panel.close();
+  focus.setFocus(a.con ? CON_INDEX[a.con] ?? -1 : -1);
+  controls.flyTo(ra, dec, { fov: Math.min(100, Math.max(8, radius * 2 * 2.4)), offsetY: timebar.isOpen ? 0.12 : 0 });
+
+  patternLayer.replaceChildren();
+  patternRings = a.indices.map((index) => {
+    const node = document.createElement('span');
+    node.className = 'pattern-ring';
+    patternLayer.append(node);
+    return { index, node };
+  });
+  patternLayer.classList.add('is-visible');
+  clearTimeout(patternTimer);
+  patternTimer = setTimeout(clearPattern, 9000);
+
+  conToast.innerHTML = '<p class="con-toast-name"></p><p class="con-toast-sub"></p><p class="con-toast-note"></p>';
+  conToast.querySelector('.con-toast-name').textContent = a.name;
+  conToast.querySelector('.con-toast-sub').textContent = a.con ? `A star pattern in ${CONSTELLATIONS[a.con][0]}` : 'A star pattern across constellations';
+  conToast.querySelector('.con-toast-note').textContent = a.note;
+  conToast.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideConToast, 9000);
+}
+
+function updatePattern() {
+  if (!patternRings.length || !patternLayer.classList.contains('is-visible')) return;
+  for (const r of patternRings) {
+    const p = projectToScreen(field, r.index, camera, window.innerWidth, window.innerHeight);
+    r.node.style.visibility = p ? '' : 'hidden';
+    if (p) r.node.style.transform = `translate(${p.x}px, ${p.y}px)`;
+  }
+}
+
+function setIndianSky(on) {
+  indianToggle.setAttribute('aria-pressed', String(on));
+  indianSky?.setEnabled(on);
+  labels?.setIndian(on);
+  sound.setIndian(on);
+}
+
+function buildSearchIndex() {
+  const entries = [];
+  const words = (...xs) => xs.flat().filter(Boolean).map(normalize);
+
+  for (const [abbr, [name, gen]] of Object.entries(CONSTELLATIONS)) {
+    const hi = conDataRef?.constellations?.[abbr]?.hi ?? null;
+    const english = ENGLISH[abbr];
+    entries.push({
+      type: 'constellation',
+      label: name,
+      sub: english ? english.charAt(0).toUpperCase() + english.slice(1) : '',
+      keys: words(name, gen, abbr, english, english?.replace(/^the /, ''), ALIASES[abbr] ?? [], hi),
+      boost: 6,
+      abbr,
+    });
+  }
+
+  if (field) {
+    const f = field.fieldIndex;
+    const seen = new Set();
+    for (let i = 0; i < field.count; i++) {
+      const r = field.rows[i];
+      const named = Boolean(r[f.proper]);
+      if (!named && r[f.mag] > 4) continue;
+      const info = describeStar(getStar(field, i));
+      if (/^(HIP|HD|HYG) /.test(info.name) || seen.has(info.name)) continue;
+      seen.add(info.name);
+      entries.push({
+        type: 'star',
+        label: info.name,
+        sub: [info.subtitle.join(', in '), info.type.label].filter(Boolean).join(' · '),
+        keys: words(info.name, info.subtitle[0], r[f.hip] ? `hip ${r[f.hip]}` : null),
+        boost: Math.max(0, 4 - r[f.mag]),
+        index: i,
+      });
+    }
+  }
+
+  if (indianResolved) {
+    for (const nk of indianResolved.nakshatras) {
+      if (!nk.indices.length) continue;
+      entries.push({ type: 'nakshatra', label: nk.name, deva: nk.deva, sub: `Nakshatra ${nk.n} of 27`, keys: words(nk.name, nk.deva), boost: 3, index: nk.indices[0], indian: true });
+    }
+    for (const s of [...indianResolved.sages, ...indianResolved.others]) {
+      if (s.index < 0) continue;
+      const isSage = indianResolved.sages.includes(s);
+      entries.push({ type: isSage ? 'rishi' : 'star', label: s.name, deva: s.deva, sub: describeStar(getStar(field, s.index)).name, keys: words(s.name, s.deva), boost: 3, index: s.index, indian: true });
+    }
+  }
+
+  if (field) {
+    for (const a of resolveAsterisms(field)) {
+      entries.push({
+        type: 'asterism',
+        label: a.name,
+        sub: a.con ? `Star pattern in ${CONSTELLATIONS[a.con][0]}` : 'Star pattern',
+        keys: words(a.name, a.aka ?? []),
+        boost: 10,
+        asterism: a,
+      });
+    }
+  }
+
+  for (const obs of observationsRef) {
+    entries.push({ type: 'observation', label: obs.entry.short, sub: obs.entry.telescope, keys: words(obs.entry.short, obs.entry.title), boost: 2, obs });
+  }
+  return entries;
+}
+
+new SkySearch(document.querySelector('.search'), document.querySelector('.search-button'), {
+  buildIndex: buildSearchIndex,
+  onPick: (entry) => {
+    hideConToast();
+    if (entry.indian) setIndianSky(true);
+    if (entry.type === 'constellation') showConstellation(entry.abbr);
+    else if (entry.type === 'asterism') showAsterism(entry.asterism);
+    else if (entry.type === 'observation') goToObservation?.(entry.obs);
+    else if (entry.index != null) select(entry.index);
+  },
+});
+
 // The Indian sky: nakshatras, Saptarishi and Hindi constellation names
 function setupIndianSky() {
   indianResolved = resolveIndianSky(field);
   indianSky = new IndianSky(document.querySelector('.indian-layer'), field, indianResolved);
   scene.add(indianSky.ecliptic);
   indianToggle.hidden = false;
-  indianToggle.addEventListener('click', () => {
-    const on = indianToggle.getAttribute('aria-pressed') !== 'true';
-    indianToggle.setAttribute('aria-pressed', String(on));
-    indianSky.setEnabled(on);
-    labels?.setIndian(on);
-    sound.setIndian(on);
-  });
+  indianToggle.addEventListener('click', () => setIndianSky(indianToggle.getAttribute('aria-pressed') !== 'true'));
 }
 
 // Moments on the time slider that come from the catalog itself
@@ -384,8 +574,11 @@ function updatePoleMarkers() {
   }
 }
 
+let goToObservation = null;
+
 function setupObservations() {
   const observations = resolveObservations(field);
+  observationsRef = observations;
   if (!observations.length) return;
   const goTo = (obs) => {
     // Centre the view on the object itself; the panel shows its nearest bright star
@@ -394,6 +587,7 @@ function setupObservations() {
       document.querySelector('.panel-images')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 700);
   };
+  goToObservation = goTo;
   markers = new ObservationMarkers(document.querySelector('.markers'), observations, goTo, field);
   const button = document.querySelector('.obs-button');
   new ObservationList(button, document.querySelector('.obs-list'), observations, {
@@ -440,6 +634,7 @@ renderer.setAnimationLoop((time) => {
   markers?.update(camera, window.innerWidth, window.innerHeight, focus.dim);
   indianSky?.update(camera, window.innerWidth, window.innerHeight, dt, focus.dim);
   updateRing();
+  updatePattern();
   updatePoleMarkers();
   renderer.render(scene, camera);
 });

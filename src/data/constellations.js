@@ -99,3 +99,32 @@ export const GREEK = {
   Tau: 'Tau', Ups: 'Upsilon', Phi: 'Phi', Chi: 'Chi', Psi: 'Psi', Ome: 'Omega',
 };
 
+
+// What each constellation's name means, for search and display
+export const ENGLISH = {
+  And: 'the Chained Princess', Ant: 'the Air Pump', Aps: 'the Bird of Paradise', Aqr: 'the Water Bearer',
+  Aql: 'the Eagle', Ara: 'the Altar', Ari: 'the Ram', Aur: 'the Charioteer', Boo: 'the Herdsman',
+  Cae: 'the Chisel', Cam: 'the Giraffe', Cnc: 'the Crab', CVn: 'the Hunting Dogs', CMa: 'the Great Dog',
+  CMi: 'the Little Dog', Cap: 'the Sea Goat', Car: 'the Keel', Cas: 'the Queen', Cen: 'the Centaur',
+  Cep: 'the King', Cet: 'the Whale', Cha: 'the Chameleon', Cir: 'the Compass', Col: 'the Dove',
+  Com: 'Berenice’s Hair', CrA: 'the Southern Crown', CrB: 'the Northern Crown', Crv: 'the Crow',
+  Crt: 'the Cup', Cru: 'the Southern Cross', Cyg: 'the Swan', Del: 'the Dolphin', Dor: 'the Swordfish',
+  Dra: 'the Dragon', Equ: 'the Little Horse', Eri: 'the River', For: 'the Furnace', Gem: 'the Twins',
+  Gru: 'the Crane', Her: 'the Hero', Hor: 'the Clock', Hya: 'the Water Snake', Hyi: 'the Little Water Snake',
+  Ind: 'the Indian', Lac: 'the Lizard', Leo: 'the Lion', LMi: 'the Little Lion', Lep: 'the Hare',
+  Lib: 'the Scales', Lup: 'the Wolf', Lyn: 'the Lynx', Lyr: 'the Lyre', Men: 'the Table Mountain',
+  Mic: 'the Microscope', Mon: 'the Unicorn', Mus: 'the Fly', Nor: 'the Carpenter’s Square', Oct: 'the Octant',
+  Oph: 'the Serpent Bearer', Ori: 'the Hunter', Pav: 'the Peacock', Peg: 'the Winged Horse', Per: 'the Hero Perseus',
+  Phe: 'the Phoenix', Pic: 'the Painter’s Easel', Psc: 'the Fishes', PsA: 'the Southern Fish', Pup: 'the Stern',
+  Pyx: 'the Compass Box', Ret: 'the Reticle', Sge: 'the Arrow', Sgr: 'the Archer', Sco: 'the Scorpion',
+  Scl: 'the Sculptor', Sct: 'the Shield', Ser: 'the Serpent', Sex: 'the Sextant', Tau: 'the Bull',
+  Tel: 'the Telescope', Tri: 'the Triangle', TrA: 'the Southern Triangle', Tuc: 'the Toucan',
+  UMa: 'the Great Bear', UMi: 'the Little Bear', Vel: 'the Sails', Vir: 'the Maiden', Vol: 'the Flying Fish',
+  Vul: 'the Little Fox',
+};
+
+// Other names people search for (asterisms like the Big Dipper are searched separately)
+export const ALIASES = {
+  UMa: ['Great Bear'],
+  UMi: ['Little Bear'],
+};

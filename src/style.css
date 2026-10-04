@@ -212,6 +212,193 @@ html, body {
 .hint.is-hidden { opacity: 0; transition-delay: 0s; }
 .status.is-visible { opacity: 1; color: var(--atlas); }
 
+/* Search */
+.search-button {
+  position: fixed;
+  top: calc(1.15rem + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem 0.45rem 0.9rem;
+  border: 1px solid rgba(138, 147, 171, 0.22);
+  border-radius: 999px;
+  background: rgba(3, 5, 11, 0.55);
+  color: var(--faint);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  z-index: 2;
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+.search-button:hover { color: var(--dim); border-color: rgba(200, 179, 138, 0.4); }
+.search-button:focus-visible { outline: 1px solid var(--atlas); outline-offset: 2px; }
+
+.search-button kbd {
+  padding: 0 0.45rem;
+  border: 1px solid rgba(138, 147, 171, 0.3);
+  border-radius: 0.35rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--faint);
+}
+
+.search {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: calc(4.5rem + env(safe-area-inset-top, 0px)) 1rem 1rem;
+  background: rgba(3, 5, 11, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+}
+
+.search.is-open { opacity: 1; visibility: visible; transition: opacity 0.3s ease, visibility 0s; }
+
+.search-box {
+  width: min(34rem, 100%);
+  border: 1px solid rgba(200, 179, 138, 0.25);
+  border-radius: 1.2rem;
+  background: rgba(5, 7, 14, 0.96);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  transform: translateY(-0.5rem);
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.search.is-open .search-box { transform: none; }
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid rgba(138, 147, 171, 0.15);
+  color: var(--atlas);
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--starlight);
+  font: inherit;
+  font-size: 1.25rem;
+}
+
+.search-input::placeholder { color: var(--faint); font-style: italic; }
+.search-input::-webkit-search-cancel-button { display: none; }
+
+.search-results { list-style: none; margin: 0; padding: 0.35rem; max-height: min(60vh, 26rem); overflow-y: auto; }
+.search-results:empty { display: none; }
+
+.search-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+
+.search-item[aria-selected="true"] { background: rgba(200, 179, 138, 0.1); }
+.search-item-main { display: flex; flex-direction: column; min-width: 0; }
+.search-item-label { font-size: 1.15rem; line-height: 1.2; }
+.search-item-deva { font-family: var(--deva); font-size: 1rem; color: var(--rose); }
+.search-item-sub { font-size: 0.9rem; font-style: italic; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-item-type { flex: none; font-size: 0.8rem; color: var(--faint); }
+
+.search-empty,
+.search-tip { margin: 0; padding: 0.9rem 1.2rem; font-size: 0.95rem; font-style: italic; color: var(--faint); }
+.search-empty[hidden],
+.search-tip[hidden] { display: none; }
+
+/* Constellation card after a search */
+.con-toast {
+  position: fixed;
+  top: calc(4.2rem + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translate(-50%, -0.4rem);
+  max-width: calc(100vw - 2rem);
+  padding: 0.8rem 1.3rem 0.9rem;
+  border: 1px solid rgba(200, 179, 138, 0.25);
+  border-radius: 1rem;
+  background: rgba(5, 7, 14, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1), visibility 0s linear 0.6s;
+  z-index: 3;
+}
+
+.con-toast.is-visible { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1), visibility 0s; }
+.con-toast-name { margin: 0; font-size: 1.7rem; font-style: italic; line-height: 1.1; }
+.con-toast-sub { margin: 0.2rem 0 0; font-size: 1rem; color: var(--atlas); }
+
+.con-toast-star {
+  margin-top: 0.6rem;
+  padding: 0.3rem 0.9rem;
+  border: 1px solid rgba(138, 147, 171, 0.3);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.con-toast-star:hover { color: var(--starlight); border-color: var(--atlas); }
+.con-toast-star:focus-visible { outline: 1px solid var(--atlas); outline-offset: 2px; }
+
+/* Stars of a searched pattern */
+.pattern-layer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+
+.pattern-layer.is-visible { opacity: 1; }
+
+.pattern-ring {
+  position: absolute;
+  left: -11px;
+  top: -11px;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--atlas);
+  border-radius: 50%;
+  opacity: 0;
+  animation: pattern-in 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) forwards, pattern-glow 5s ease-in-out 1.4s infinite;
+  will-change: transform;
+}
+
+/* Settle in once, then only a slow, gentle glow (no size change) */
+@keyframes pattern-in {
+  from { opacity: 0; scale: 1.8; }
+  to { opacity: 0.8; scale: 1; }
+}
+
+@keyframes pattern-glow {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.5; }
+}
+
+.con-toast-note { max-width: 24rem; margin: 0.45rem auto 0; font-size: 0.98rem; line-height: 1.45; color: var(--dim); }
+
 /* Credits */
 .credits {
   position: fixed;
@@ -1690,6 +1877,10 @@ html, body {
 
 @media (max-width: 719px) {
   .title { font-size: 1.35rem; }
+  .search-button { left: auto; right: var(--edge-r); transform: none; padding: 0.5rem; }
+  .search-button-text,
+  .search-button kbd { display: none; }
+  .credits { top: calc(4rem + env(safe-area-inset-top, 0px)); }
 
   .chat {
     top: auto;
@@ -1751,5 +1942,7 @@ html, body {
   .chat-msg { animation: none; }
   .timebar, .timebar.is-open { transition: none; transform: none; }
   .indian-layer { transition: none; }
+  .search, .search-box, .con-toast { transition: none; }
+  .pattern-ring { animation: none; opacity: 0.8; scale: 1; }
   .chat-msg.is-typing span { animation: none; opacity: 0.7; }
 }
