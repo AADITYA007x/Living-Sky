@@ -106,7 +106,7 @@ function select(index, { center = null } = {}) {
   const target = center ?? { ra: star.ra, dec: star.dec };
   controls.flyTo(target.ra, target.dec, {
     fov: Math.min(controls.targetFov, 55),
-    offsetY: isNarrow() ? 0.22 : 0,
+    offsetY: isNarrow() ? 0.22 : timebar.isOpen ? 0.12 : 0,
   });
 }
 
@@ -304,9 +304,9 @@ function poleStarText(year) {
       best = i;
     }
   }
-  if (best < 0 || bestAngle > 6) return 'No bright star marks the north pole of the sky.';
+  if (best < 0 || bestAngle > 6) return 'No bright North Star in this era';
   const name = describeStar(getStar(field, best)).name;
-  return `North Star: ${name}, ${bestAngle < 1 ? 'less than 1°' : `${bestAngle.toFixed(0)}°`} from the pole`;
+  return `North Star: ${name} · ${bestAngle < 1 ? 'under 1°' : `${bestAngle.toFixed(0)}°`} from the pole`;
 }
 
 let lastPoleUpdate = 0;
@@ -407,6 +407,7 @@ renderer.setAnimationLoop((time) => {
   controls.update(dt);
   focus.update(dt);
   timeOffset = timebar.update(dt);
+  document.body.classList.toggle('is-dragging-sky', controls.pointers.size > 0);
   if (field) applyTime(timeOffset, time);
   field?.update(dt, camera.fov, focus);
   milkyWay.update(dt, focus);

@@ -33,35 +33,43 @@ export class TimeBar {
     const r = this.root;
     r.setAttribute('aria-label', 'Time machine');
     r.innerHTML = `
-      <div class="tb-head">
-        <p class="tb-era">Tonight</p>
-        <p class="tb-sub"></p>
-      </div>
-      <div class="tb-track">
-        <span class="tb-now" aria-hidden="true"></span>
-        <div class="tb-moments"></div>
-        <input class="tb-range" type="range" min="-1000" max="1000" step="1" value="0" aria-label="Year" />
-      </div>
-      <div class="tb-scale" aria-hidden="true">
-        <span>${LIMIT.toLocaleString('en-US')} years ago</span>
-        <span>Now</span>
-        <span>${LIMIT.toLocaleString('en-US')} years ahead</span>
+      <div class="tb-top">
+        <div class="tb-head">
+          <p class="tb-era">Tonight</p>
+          <p class="tb-sub"></p>
+        </div>
+        <button class="tb-min" type="button" aria-expanded="true" aria-label="Minimize time machine">
+          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
       <p class="tb-pole"></p>
-      <div class="tb-actions">
-        <button class="tb-flow" type="button" data-dir="-1" aria-pressed="false">
-          <svg class="icon-play" viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M14 4.5v11L5 10z" fill="currentColor"/></svg>
-          <svg class="icon-pause" viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M6 4.5h2.6v11H6zM11.4 4.5H14v11h-2.6z" fill="currentColor"/></svg>
-          <span>Flow back</span>
-        </button>
-        <button class="tb-flow" type="button" data-dir="1" aria-pressed="false">
-          <svg class="icon-play" viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M6 4.5v11l9-5.5z" fill="currentColor"/></svg>
-          <svg class="icon-pause" viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M6 4.5h2.6v11H6zM11.4 4.5H14v11h-2.6z" fill="currentColor"/></svg>
-          <span>Flow forward</span>
-        </button>
-        <button class="tb-reset" type="button">Return to tonight</button>
+      <div class="tb-body">
+        <div class="tb-track">
+          <span class="tb-now" aria-hidden="true"></span>
+          <div class="tb-moments"></div>
+          <input class="tb-range" type="range" min="-1000" max="1000" step="1" value="0" aria-label="Year" />
+        </div>
+        <div class="tb-scale" aria-hidden="true">
+          <span>${LIMIT.toLocaleString('en-US')} years ago</span>
+          <span>Now</span>
+          <span>${LIMIT.toLocaleString('en-US')} years ahead</span>
+        </div>
+        <div class="tb-actions">
+          <button class="tb-flow" type="button" data-dir="-1" aria-pressed="false">
+            <svg class="icon-play" viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M14 4.5v11L5 10z" fill="currentColor"/></svg>
+            <svg class="icon-pause" viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 4.5h2.6v11H6zM11.4 4.5H14v11h-2.6z" fill="currentColor"/></svg>
+            <span>Flow back</span>
+          </button>
+          <button class="tb-flow" type="button" data-dir="1" aria-pressed="false">
+            <svg class="icon-play" viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 4.5v11l9-5.5z" fill="currentColor"/></svg>
+            <svg class="icon-pause" viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M6 4.5h2.6v11H6zM11.4 4.5H14v11h-2.6z" fill="currentColor"/></svg>
+            <span>Flow forward</span>
+          </button>
+          <button class="tb-reset" type="button">Tonight</button>
+          <button class="tb-info" type="button" aria-expanded="false" aria-label="About accuracy">i</button>
+        </div>
+        <p class="tb-note" hidden>Star motions measured by the Hipparcos satellite, extended in straight lines. Tens of thousands of years away this becomes an approximation.</p>
       </div>
-      <p class="tb-note">Star motions measured by the Hipparcos satellite, extended in straight lines. Tens of thousands of years away this becomes an approximation.</p>
     `;
     this.era = r.querySelector('.tb-era');
     this.sub = r.querySelector('.tb-sub');
@@ -79,6 +87,21 @@ export class TimeBar {
       b.addEventListener('click', () => this.setFlow(this.flow === dir ? 0 : dir));
     }
     r.querySelector('.tb-reset').addEventListener('click', () => this.goTo(0));
+
+    const minBtn = r.querySelector('.tb-min');
+    minBtn.addEventListener('click', () => {
+      const min = !r.classList.contains('is-min');
+      r.classList.toggle('is-min', min);
+      minBtn.setAttribute('aria-expanded', String(!min));
+      minBtn.setAttribute('aria-label', min ? 'Expand time machine' : 'Minimize time machine');
+    });
+
+    const info = r.querySelector('.tb-info');
+    const note = r.querySelector('.tb-note');
+    info.addEventListener('click', () => {
+      note.hidden = !note.hidden;
+      info.setAttribute('aria-expanded', String(!note.hidden));
+    });
     this.renderMoments();
   }
 
