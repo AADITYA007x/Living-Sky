@@ -1,5 +1,6 @@
 import { formatDistance } from '../sky/describe.js';
 import { thumbnailUrl } from './gallery.js';
+import { temperatureToRGB } from '../sky/astro.js';
 
 function visibilityPhrase(mag) {
   if (mag < 1) return 'One of the brightest stars in the sky';
@@ -43,7 +44,16 @@ export class StarPanel {
     close.addEventListener('click', () => this.close());
 
     const body = el('div', 'panel-body');
-    body.append(el('h2', 'panel-name', info.name));
+    const heading = el('div', 'panel-heading');
+    if (info.temperature) {
+      const [r, g, b] = temperatureToRGB(info.temperature).map((c) => Math.round((c * 0.85 + 0.15) * 255));
+      const swatch = el('span', 'panel-swatch');
+      swatch.style.setProperty('--star', `rgb(${r}, ${g}, ${b})`);
+      swatch.setAttribute('aria-hidden', 'true');
+      heading.append(swatch);
+    }
+    heading.append(el('h2', 'panel-name', info.name));
+    body.append(heading);
     if (info.subtitle.length) body.append(el('p', 'panel-sub', info.subtitle.join(', in ')));
     if (info.origin) body.append(el('p', 'panel-origin', info.origin));
     if (info.lightYear) body.append(el('p', 'panel-light', info.lightYear));

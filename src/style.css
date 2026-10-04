@@ -33,6 +33,145 @@ html, body {
 
 #sky:active { cursor: grabbing; }
 
+/* Meteors, with a soft vignette that gives the sky depth */
+.meteors {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: radial-gradient(ellipse 120% 90% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
+}
+
+/* Star name on hover */
+.hover-label {
+  position: fixed;
+  left: 0;
+  top: 0;
+  margin: 0.9rem 0 0 0.9rem;
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--starlight);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.95);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  will-change: transform;
+}
+
+.hover-label.is-visible { opacity: 0.9; }
+
+/* Opening screen */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.5rem;
+  background: radial-gradient(ellipse at center, rgba(3, 5, 11, 0.35) 0%, rgba(3, 5, 11, 0.82) 60%, rgba(3, 5, 11, 0.95) 100%);
+  transition: opacity 1.3s ease, visibility 0s linear 1.3s;
+}
+
+.intro.is-leaving { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.intro-inner {
+  max-width: 34rem;
+  text-align: center;
+}
+
+.intro-kicker,
+.intro-title,
+.intro-text,
+.intro-actions {
+  opacity: 0;
+  transform: translateY(0.8rem);
+  transition: opacity 1.4s ease, transform 1.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.intro.is-visible .intro-kicker,
+.intro.is-visible .intro-title,
+.intro.is-visible .intro-text,
+.intro.is-visible .intro-actions { opacity: 1; transform: none; }
+
+.intro.is-visible .intro-kicker { transition-delay: 0.2s; }
+.intro.is-visible .intro-title { transition-delay: 0.5s; }
+.intro.is-visible .intro-text { transition-delay: 1s; }
+.intro.is-visible .intro-actions { transition-delay: 1.4s; }
+
+.intro-kicker {
+  margin: 0;
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--atlas);
+}
+
+.intro-title {
+  margin: 0.4rem 0 0;
+  font-size: clamp(3.4rem, 11vw, 6.5rem);
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  background: linear-gradient(100deg, #f4ead6 0%, #e6eaf5 40%, #c8b38a 55%, #e6eaf5 70%, #f4ead6 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 9s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.intro-text {
+  margin: 1.3rem auto 0;
+  max-width: 28rem;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--dim);
+}
+
+.intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 2.2rem;
+}
+
+.intro-begin,
+.intro-silent {
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.4s ease;
+}
+
+.intro-begin {
+  border: 1px solid var(--atlas);
+  background: var(--atlas);
+  color: var(--night);
+  box-shadow: 0 0 40px rgba(200, 179, 138, 0.25);
+}
+
+.intro-begin:hover { box-shadow: 0 0 60px rgba(200, 179, 138, 0.45); }
+
+.intro-silent {
+  border: 1px solid rgba(138, 147, 171, 0.3);
+  background: transparent;
+  color: var(--dim);
+}
+
+.intro-silent:hover { color: var(--starlight); border-color: rgba(230, 234, 245, 0.45); }
+.intro-begin:focus-visible,
+.intro-silent:focus-visible { outline: 1px solid var(--starlight); outline-offset: 3px; }
+
 /* Title, hint, status */
 .title {
   position: fixed;
@@ -109,7 +248,8 @@ html, body {
 }
 
 .toggle-lines,
-.obs-button {
+.obs-button,
+.sound-toggle {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
@@ -125,13 +265,20 @@ html, body {
 }
 
 .toggle-lines[hidden],
-.obs-button[hidden] { display: none; }
+.obs-button[hidden],
+.sound-toggle[hidden] { display: none; }
 .toggle-lines:hover,
-.obs-button:hover { color: var(--dim); }
+.obs-button:hover,
+.sound-toggle:hover { color: var(--dim); }
 .toggle-lines[aria-pressed="true"],
-.obs-button[aria-expanded="true"] { color: var(--atlas); border-color: rgba(200, 179, 138, 0.4); }
+.obs-button[aria-expanded="true"],
+.sound-toggle[aria-pressed="true"] { color: var(--atlas); border-color: rgba(200, 179, 138, 0.4); }
 .toggle-lines:focus-visible,
-.obs-button:focus-visible { outline: 1px solid var(--atlas); outline-offset: 2px; }
+.obs-button:focus-visible,
+.sound-toggle:focus-visible { outline: 1px solid var(--atlas); outline-offset: 2px; }
+.sound-toggle .icon-on { display: none; }
+.sound-toggle[aria-pressed="true"] .icon-on { display: block; }
+.sound-toggle[aria-pressed="true"] .icon-off { display: none; }
 .obs-button svg { color: var(--atlas); }
 
 .obs-count {
@@ -409,6 +556,27 @@ html, body {
 .panel-close:focus-visible { outline: 1px solid var(--atlas); outline-offset: 2px; }
 
 .panel-body { max-width: 34ch; margin-left: auto; }
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.panel-swatch {
+  flex: none;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  background: var(--star);
+  box-shadow: 0 0 10px 2px var(--star), 0 0 28px 6px color-mix(in srgb, var(--star) 45%, transparent);
+  animation: swatch-glow 4s ease-in-out infinite;
+}
+
+@keyframes swatch-glow {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
 
 .panel-name {
   margin: 0;
@@ -1155,7 +1323,9 @@ html, body {
   .chat-form, .chat-note { margin-left: 0; }
   .chat-input { font-size: 16px; }
   .credits a { font-size: 0.72rem; }
-  .toggle-lines, .obs-button { font-size: 0.92rem; padding: 0.4rem 0.75rem 0.4rem 0.6rem; }
+  .toggle-lines, .obs-button, .sound-toggle { font-size: 0.92rem; padding: 0.4rem 0.75rem 0.4rem 0.6rem; }
+  .sound-label { display: none; }
+  .intro-text { font-size: 1.1rem; }
   .hint { bottom: calc(6.6rem + env(safe-area-inset-bottom, 0px)); }
   .obs-list { bottom: calc(7.2rem + env(safe-area-inset-bottom, 0px)); }
 
@@ -1188,6 +1358,9 @@ html, body {
   .gallery, .gallery.is-open, .gallery-img { transition: none; }
   .obs-list, .obs-list.is-open { transition: none; transform: none; }
   .obs-marker-dot { animation: none; }
+  .intro, .intro-kicker, .intro-title, .intro-text, .intro-actions { transition: none; transform: none; }
+  .intro-title { animation: none; }
+  .panel-swatch { animation: none; }
   .chat, .chat.is-open { transition: none; transform: none; }
   .chat-msg { animation: none; }
   .chat-msg.is-typing span { animation: none; opacity: 0.7; }
