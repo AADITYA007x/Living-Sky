@@ -15,7 +15,7 @@ const SOURCE_URL = 'https://www.astronexus.com/downloads/catalogs/hygdata_v42.cs
 
 const MAG_LIMIT = 6.5;
 const PC_TO_LY = 3.261563777;
-const FIELDS = ['ra', 'dec', 'mag', 'ci', 'distLy', 'proper', 'bayer', 'flam', 'con', 'spect', 'hip', 'hd', 'lum', 'id'];
+const FIELDS = ['ra', 'dec', 'mag', 'ci', 'distLy', 'proper', 'bayer', 'flam', 'con', 'spect', 'hip', 'hd', 'lum', 'id', 'pmra', 'pmdec', 'vx', 'vy', 'vz'];
 
 async function ensureRaw() {
   if (fs.existsSync(RAW_FILE)) return;
@@ -67,6 +67,7 @@ const num = (v) => {
 };
 const round = (n, d) => (n === null ? null : Math.round(n * 10 ** d) / 10 ** d);
 const sig = (n, d) => (n === null ? null : Number(n.toPrecision(d)));
+const microPc = (v) => (v === null ? null : Math.round(v * 1e10) / 1e4);
 const str = (v) => {
   const s = (v ?? '').trim();
   return s === '' ? null : s;
@@ -78,7 +79,7 @@ async function main() {
   const header = parseLine(lines[0]).map((h) => h.trim());
   const col = Object.fromEntries(header.map((h, i) => [h, i]));
 
-  const required = ['id', 'ra', 'dec', 'mag', 'ci', 'dist', 'proper', 'bayer', 'flam', 'con', 'spect', 'hip', 'hd', 'lum'];
+  const required = ['id', 'ra', 'dec', 'mag', 'ci', 'dist', 'proper', 'bayer', 'flam', 'con', 'spect', 'hip', 'hd', 'lum', 'pmra', 'pmdec', 'vx', 'vy', 'vz'];
   const missing = required.filter((c) => !(c in col));
   if (missing.length) throw new Error(`Catalog is missing columns: ${missing.join(', ')}`);
 
@@ -113,6 +114,12 @@ async function main() {
       num(f[col.hd]),
       sig(num(f[col.lum]), 4),
       id,
+      round(num(f[col.pmra]), 2),
+      round(num(f[col.pmdec]), 2),
+      // Space velocity in micro-parsecs per year (HYG gives parsecs per year)
+      distLy === null ? null : microPc(num(f[col.vx])),
+      distLy === null ? null : microPc(num(f[col.vy])),
+      distLy === null ? null : microPc(num(f[col.vz])),
     ]);
   }
 
@@ -124,7 +131,8 @@ async function main() {
       sourceUrl: 'https://www.astronexus.com/projects/hyg',
       license: 'CC BY-SA 4.0',
       licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
-      modifications: `Filtered to apparent magnitude <= ${MAG_LIMIT}, Sun removed, RA converted to degrees, distance converted to light-years, values rounded.`,
+      modifications: `Filtered to apparent magnitude <= ${MAG_LIMIT}, Sun removed, RA converted to degrees, distance converted to light-years, velocities converted to micro-parsecs per year, values rounded.`,
+      units: { pmra: 'mas/yr (includes cos dec)', pmdec: 'mas/yr', vx: 'micro-parsecs/yr, equatorial x toward RA 0h', vy: 'toward RA 6h', vz: 'toward north celestial pole' },
       epoch: 'J2000',
       magLimit: MAG_LIMIT,
       count: stars.length,

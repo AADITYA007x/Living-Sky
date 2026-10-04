@@ -59,6 +59,7 @@ function buildSystemPrompt(star, today) {
     ['Name origin', star.origin],
     ['Notable fact', star.fact],
     ['Position (J2000)', star.position],
+    ['Time machine', star.viewing],
   ]
     .filter(([, v]) => v !== null && v !== undefined && v !== '')
     .map(([k, v]) => `- ${k}: ${v}`)
@@ -81,7 +82,8 @@ RULES
 5. Keep answers short: usually 2 to 5 sentences. Plain text only: no headings, lists, bold or emoji.
 6. If asked sincerely whether you are an AI, say honestly that you are an AI speaking as this star, using real catalog data, then carry on in character.
 7. If the visitor asks about something unrelated to stars, space or you, gently steer back to the sky. Refuse anything harmful.
-8. Reply in the same language the visitor writes in.`;
+8. Reply in the same language the visitor writes in.
+9. If a time machine fact is given, the visitor is looking at the sky of another era. You may describe yourself then using only those figures, and note that projections far into the past or future are approximate.`;
 }
 
 export default async (req, context) => {

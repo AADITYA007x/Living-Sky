@@ -37,8 +37,9 @@ export function resolveObservations(field) {
 
 // Small gold markers on the sky showing where each observation is.
 export class ObservationMarkers {
-  constructor(root, observations, onSelect) {
+  constructor(root, observations, onSelect, field = null) {
     this.root = root;
+    this.field = field;
     this.visible = true;
     this.v = new THREE.Vector3();
     this.forward = new THREE.Vector3();
@@ -68,6 +69,10 @@ export class ObservationMarkers {
     camera.getWorldDirection(this.forward);
     this.root.style.setProperty('--obs-dim', String(1 - dim * 0.55));
     for (const item of this.items) {
+      // Markers on a star follow it when the time machine moves the stars
+      if (item.entry.hips && this.field) {
+        item.pos.fromArray(this.field.positions, item.index * 3).multiplyScalar(0.998);
+      }
       if (item.pos.dot(this.forward) <= 0) {
         item.node.classList.add('is-offscreen');
         continue;

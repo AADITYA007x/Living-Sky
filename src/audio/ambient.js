@@ -46,13 +46,6 @@ export class AmbientSound {
     const ctx = new AC();
     this.ctx = ctx;
 
-    // Diagnostics: shows in the browser console when the audio clock pauses or resumes
-    ctx.addEventListener('statechange', () => {
-      console.info(`[music] audio ${ctx.state}${document.hidden ? ' (tab hidden)' : ''}, enabled: ${this.enabled}`);
-    });
-    document.addEventListener('visibilitychange', () => {
-      console.info(`[music] tab ${document.hidden ? 'hidden' : 'visible'}, audio ${ctx.state}, queued ${this.scheduled.length}`);
-    });
 
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -18;

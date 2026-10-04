@@ -10,39 +10,82 @@ function vec(ra, dec) {
   return new THREE.Vector3(...raDecToVector(ra, dec, 1));
 }
 
-function buildLines(data) {
+// Find the catalog star at each stick-figure vertex, so lines can follow the
+// stars as they move in the time machine.
+function makeStarMatcher(field) {
+  const cache = new Map();
+  const dirs = field?.dirs;
+  const count = field?.count ?? 0;
+  const limit = Math.cos(0.3 * DEG);
+  return (ra, dec, v) => {
+    if (!dirs) return -1;
+    const key = `${ra},${dec}`;
+    if (cache.has(key)) return cache.get(key);
+    let best = -1;
+    let bestDot = limit;
+    for (let i = 0; i < count; i++) {
+      const d = v.x * dirs[i * 3] + v.y * dirs[i * 3 + 1] + v.z * dirs[i * 3 + 2];
+      if (d > bestDot) {
+        bestDot = d;
+        best = i;
+      }
+    }
+    cache.set(key, best);
+    return best;
+  };
+}
+
+function buildLines(data, field) {
+  const match = makeStarMatcher(field);
   const pos = [];
   const con = [];
   const end = [];
-  const a = new THREE.Vector3();
-  const b = new THREE.Vector3();
+  const starA = [];
+  const starB = [];
+  const tParam = [];
+  const fixedA = [];
+  const fixedB = [];
 
   for (const [key, c] of Object.entries(data)) {
     const ci = CON_INDEX[key];
     if (ci === undefined) continue;
     for (const line of c.lines) {
       for (let i = 1; i < line.length; i++) {
-        a.copy(vec(...line[i - 1]));
-        b.copy(vec(...line[i]));
+        const a = vec(...line[i - 1]);
+        const b = vec(...line[i]);
         const angle = a.angleTo(b);
         if (angle < 1e-6) continue;
+        const ia = match(line[i - 1][0], line[i - 1][1], a);
+        const ib = match(line[i][0], line[i][1], b);
         const n = Math.max(10, Math.ceil(angle / (0.4 * DEG)));
-        let prev = null;
-        for (let s = 0; s <= n; s++) {
-          const t = s / n;
+        const push = (t) => {
           const p = slerp(a, b, angle, t).multiplyScalar(R);
-          const e = Math.min(t, 1 - t) * angle / DEG;
-          if (prev) {
-            pos.push(prev.p.x, prev.p.y, prev.p.z, p.x, p.y, p.z);
-            con.push(ci, ci);
-            end.push(prev.e, e);
-          }
-          prev = { p, e };
+          pos.push(p.x, p.y, p.z);
+          con.push(ci);
+          end.push((Math.min(t, 1 - t) * angle) / DEG);
+          starA.push(ia);
+          starB.push(ib);
+          tParam.push(t);
+          fixedA.push(a.x, a.y, a.z);
+          fixedB.push(b.x, b.y, b.z);
+        };
+        for (let s = 0; s < n; s++) {
+          push(s / n);
+          push((s + 1) / n);
         }
       }
     }
   }
-  return { pos, con, end };
+  return {
+    pos: new Float32Array(pos),
+    con,
+    end,
+    starA: Int32Array.from(starA),
+    starB: Int32Array.from(starB),
+    tParam: Float32Array.from(tParam),
+    fixedA: Float32Array.from(fixedA),
+    fixedB: Float32Array.from(fixedB),
+  };
 }
 
 function buildBounds(data) {
@@ -124,11 +167,12 @@ const linesFragment = /* glsl */ `
 const boundsVertex = /* glsl */ `
   attribute float aCon;
   attribute float aDist;
+  uniform float uFade;
   varying float vAlpha;
   varying float vDist;
   ${focusGLSL}
   void main() {
-    vAlpha = focusAmount(aCon) * 0.42;
+    vAlpha = focusAmount(aCon) * 0.42 * uFade;
     vDist = aDist;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
@@ -147,12 +191,13 @@ const boundsFragment = /* glsl */ `
   }
 `;
 
-export function createConstellations(json) {
+export function createConstellations(json, field = null) {
   const data = json.constellations;
 
-  const l = buildLines(data);
+  const l = buildLines(data, field);
   const lineGeo = new THREE.BufferGeometry();
-  lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(l.pos, 3));
+  const linePos = new THREE.BufferAttribute(l.pos, 3);
+  lineGeo.setAttribute('position', linePos);
   lineGeo.setAttribute('aCon', new THREE.Float32BufferAttribute(l.con, 1));
   lineGeo.setAttribute('aEnd', new THREE.Float32BufferAttribute(l.end, 1));
   const lineMat = new THREE.ShaderMaterial({
@@ -182,6 +227,7 @@ export function createConstellations(json) {
     uniforms: {
       ...focusUniforms(),
       uDash: { value: 1 },
+      uFade: { value: 1 },
       uColor: { value: new THREE.Color(0.78, 0.7, 0.54) },
     },
     transparent: true,
@@ -207,6 +253,35 @@ export function createConstellations(json) {
   return {
     group,
     labels,
+    // Re-draw the stick figures from the stars' current positions
+    followStars(dirs) {
+      const { starA, starB, tParam, fixedA, fixedB } = l;
+      const out = l.pos;
+      for (let v = 0; v < tParam.length; v++) {
+        const ia = starA[v];
+        const ib = starB[v];
+        const k = v * 3;
+        const ax = ia >= 0 ? dirs[ia * 3] : fixedA[k];
+        const ay = ia >= 0 ? dirs[ia * 3 + 1] : fixedA[k + 1];
+        const az = ia >= 0 ? dirs[ia * 3 + 2] : fixedA[k + 2];
+        const bx = ib >= 0 ? dirs[ib * 3] : fixedB[k];
+        const by = ib >= 0 ? dirs[ib * 3 + 1] : fixedB[k + 1];
+        const bz = ib >= 0 ? dirs[ib * 3 + 2] : fixedB[k + 2];
+        const t = tParam[v];
+        const x = ax + (bx - ax) * t;
+        const y = ay + (by - ay) * t;
+        const z = az + (bz - az) * t;
+        const len = Math.hypot(x, y, z) || 1;
+        out[k] = (x / len) * R;
+        out[k + 1] = (y / len) * R;
+        out[k + 2] = (z / len) * R;
+      }
+      linePos.needsUpdate = true;
+    },
+    // Official boundaries are a modern convention, so they fade out far from today
+    setBoundaryFade(v) {
+      boundMat.uniforms.uFade.value = v;
+    },
     update(focus, fov) {
       focus.apply(lineMat.uniforms);
       focus.apply(boundMat.uniforms);

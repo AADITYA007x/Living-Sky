@@ -5,6 +5,9 @@ import { CON_INDEX } from '../data/constellations.js';
 
 export const SKY_RADIUS = 100;
 
+const LY_PER_PC = 3.261563777;
+const MAS_TO_RAD = Math.PI / (180 * 3600 * 1000);
+
 const vertexShader = /* glsl */ `
   attribute float aMag;
   attribute vec3 aColor;
@@ -80,32 +83,62 @@ export function createStarField(data, { pixelRatio = 1 } = {}) {
   const count = rows.length;
 
   const positions = new Float32Array(count * 3);
+  const dirs = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const mags = new Float32Array(count);
+  const baseMags = new Float32Array(count);
   const seeds = new Float32Array(count);
   const cons = new Float32Array(count);
+  // Motion model: position p(t) = p0 + v * t, in parsecs for stars with a
+  // known distance, or on the unit sphere (angular motion only) otherwise.
+  const p0 = new Float32Array(count * 3);
+  const vel = new Float32Array(count * 3);
+  const baseDist = new Float32Array(count);
+  const motion3d = new Uint8Array(count);
+  const has = (k) => k in f;
 
   for (let i = 0; i < count; i++) {
     const s = rows[i];
-    const [x, y, z] = raDecToVector(s[f.ra], s[f.dec], SKY_RADIUS);
-    positions[i * 3] = x;
-    positions[i * 3 + 1] = y;
-    positions[i * 3 + 2] = z;
+    const [ux, uy, uz] = raDecToVector(s[f.ra], s[f.dec], 1);
+    dirs.set([ux, uy, uz], i * 3);
+    positions.set([ux * SKY_RADIUS, uy * SKY_RADIUS, uz * SKY_RADIUS], i * 3);
 
     const [r, g, b] = bvToDisplayRGB(s[f.ci]);
-    colors[i * 3] = r;
-    colors[i * 3 + 1] = g;
-    colors[i * 3 + 2] = b;
+    colors.set([r, g, b], i * 3);
 
-    mags[i] = s[f.mag];
+    mags[i] = baseMags[i] = s[f.mag];
     seeds[i] = Math.random();
     cons[i] = CON_INDEX[s[f.con]] ?? -10;
+
+    const distPc = s[f.distLy] != null ? s[f.distLy] / LY_PER_PC : null;
+    const vx = has('vx') ? s[f.vx] : null;
+    if (distPc && vx != null) {
+      // HYG equatorial x, y, z -> this scene's frame (x, z, -y), micro-parsecs/yr -> parsecs/yr
+      baseDist[i] = distPc;
+      motion3d[i] = 1;
+      p0.set([ux * distPc, uy * distPc, uz * distPc], i * 3);
+      vel.set([vx * 1e-6, s[f.vz] * 1e-6, -s[f.vy] * 1e-6], i * 3);
+    } else {
+      baseDist[i] = 1;
+      p0.set([ux, uy, uz], i * 3);
+      const pmra = has('pmra') ? (s[f.pmra] ?? 0) * MAS_TO_RAD : 0;
+      const pmdec = has('pmdec') ? (s[f.pmdec] ?? 0) * MAS_TO_RAD : 0;
+      const ra = s[f.ra] * (Math.PI / 180);
+      const dec = s[f.dec] * (Math.PI / 180);
+      // pmra already includes cos(dec), so this stays finite near the poles
+      vel.set([
+        -pmra * Math.sin(ra) - pmdec * Math.sin(dec) * Math.cos(ra),
+        pmdec * Math.cos(dec),
+        -pmra * Math.cos(ra) + pmdec * Math.sin(dec) * Math.sin(ra),
+      ], i * 3);
+    }
   }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
-  geometry.setAttribute('aMag', new THREE.BufferAttribute(mags, 1));
+  const magAttr = new THREE.BufferAttribute(mags, 1);
+  geometry.setAttribute('aMag', magAttr);
   geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
   geometry.setAttribute('aCon', new THREE.BufferAttribute(cons, 1));
 
@@ -132,6 +165,8 @@ export function createStarField(data, { pixelRatio = 1 } = {}) {
   points.frustumCulled = false;
 
   let elapsed = 0;
+  let years = 0;
+  const hasDistance = (i) => motion3d[i] === 1;
 
   return {
     points,
@@ -140,6 +175,46 @@ export function createStarField(data, { pixelRatio = 1 } = {}) {
     fieldIndex: f,
     positions,
     mags,
+    dirs,
+    // Move every star to where it will be `t` years after the catalog epoch (J2000)
+    setYears(t) {
+      if (Math.abs(t - years) < 0.5) return;
+      years = t;
+      for (let i = 0; i < count; i++) {
+        const k = i * 3;
+        const x = p0[k] + vel[k] * t;
+        const y = p0[k + 1] + vel[k + 1] * t;
+        const z = p0[k + 2] + vel[k + 2] * t;
+        const len = Math.hypot(x, y, z) || 1;
+        dirs[k] = x / len;
+        dirs[k + 1] = y / len;
+        dirs[k + 2] = z / len;
+        positions[k] = dirs[k] * SKY_RADIUS;
+        positions[k + 1] = dirs[k + 1] * SKY_RADIUS;
+        positions[k + 2] = dirs[k + 2] * SKY_RADIUS;
+        // Brightness follows distance: 5 magnitudes per factor of 10
+        mags[i] = hasDistance(i) ? baseMags[i] + 5 * Math.log10(len / baseDist[i]) : baseMags[i];
+      }
+      geometry.attributes.position.needsUpdate = true;
+      magAttr.needsUpdate = true;
+    },
+    // Distance and brightness of one star at the current time
+    stateAt(i) {
+      if (!hasDistance(i)) return { distLy: null, mag: mags[i] };
+      const k = i * 3;
+      const len = Math.hypot(p0[k] + vel[k] * years, p0[k + 1] + vel[k + 1] * years, p0[k + 2] + vel[k + 2] * years);
+      return { distLy: len * LY_PER_PC, mag: mags[i] };
+    },
+    // Year offset (from J2000) and distance of a star's closest approach to the Sun
+    closestApproach(i) {
+      if (!hasDistance(i)) return null;
+      const k = i * 3;
+      const v2 = vel[k] ** 2 + vel[k + 1] ** 2 + vel[k + 2] ** 2;
+      if (!v2) return null;
+      const t = -(p0[k] * vel[k] + p0[k + 1] * vel[k + 1] + p0[k + 2] * vel[k + 2]) / v2;
+      const d = Math.hypot(p0[k] + vel[k] * t, p0[k + 1] + vel[k + 1] * t, p0[k + 2] + vel[k + 2] * t);
+      return { t, distLy: d * LY_PER_PC, mag: baseMags[i] + 5 * Math.log10(d / baseDist[i]) };
+    },
     conIndexOf(index) {
       return cons[index];
     },

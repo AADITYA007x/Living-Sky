@@ -69,6 +69,13 @@ standard astronomy references. Where published values disagree, a range is shown
 - Temperature to RGB: Tanner Helland's blackbody color approximation.
 - Bolometric correction: Torres, G. (2010), AJ 140, 1158.
 
+## Time machine
+Star motion uses the HYG catalog's proper motions and space velocities (from Hipparcos measurements and,
+where known, radial velocities), extended in straight lines from the J2000 positions. Brightness changes
+follow the changing distance. Earth's axial precession is modelled as a rotation of the celestial pole
+around the ecliptic pole once every ~25,772 years; the slow change in the axis tilt is ignored.
+Both are good approximations for thousands of years and increasingly rough over tens of thousands.
+
 ## Music and Milky Way
 The music is generated live in the browser with the Web Audio API (`src/audio/ambient.js`); it uses no
 recordings or samples. The Milky Way glow is drawn procedurally along the real galactic plane

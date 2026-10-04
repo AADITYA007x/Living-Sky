@@ -57,6 +57,9 @@ export class StarPanel {
     if (info.subtitle.length) body.append(el('p', 'panel-sub', info.subtitle.join(', in ')));
     if (info.origin) body.append(el('p', 'panel-origin', info.origin));
     if (info.lightYear) body.append(el('p', 'panel-light', info.lightYear));
+    this.thenEl = el('p', 'panel-then');
+    this.thenEl.hidden = true;
+    body.append(this.thenEl);
 
     const actions = el('div', 'panel-actions');
 
@@ -128,6 +131,13 @@ export class StarPanel {
     r.scrollTop = 0;
     r.setAttribute('aria-hidden', 'false');
     r.classList.add('is-open');
+  }
+
+  // A line describing the star at the time machine's chosen year
+  setThen(text) {
+    if (!this.thenEl) return;
+    this.thenEl.hidden = !text;
+    this.thenEl.textContent = text ?? '';
   }
 
   close() {

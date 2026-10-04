@@ -19,6 +19,8 @@ import { createMilkyWay } from './sky/milkyway.js';
 import { AmbientSound } from './audio/ambient.js';
 import { Meteors } from './ui/meteors.js';
 import { showIntro } from './ui/intro.js';
+import { TimeBar } from './ui/timebar.js';
+import { EPOCH, currentYear, polesAt, formatEra } from './sky/timetravel.js';
 
 const canvas = document.querySelector('#sky');
 const hint = document.querySelector('.hint');
@@ -68,6 +70,23 @@ let markers = null;
 let selected = -1;
 let current = null;
 
+// Time machine
+let timeOffset = 0; // years from tonight currently shown
+let appliedOffset = null;
+const poleMarkers = {
+  north: document.querySelector('.pole-north'),
+  south: document.querySelector('.pole-south'),
+};
+const timeButton = document.querySelector('.time-button');
+const timebar = new TimeBar(document.querySelector('.timebar'), timeButton, {
+  onOpen: () => {
+    hint?.classList.add('is-hidden');
+    document.body.classList.add('is-time-travelling');
+  },
+  onClose: () => document.body.classList.remove('is-time-travelling'),
+  onMoment: () => sound.glint(),
+});
+
 const isNarrow = () => window.innerWidth < 720;
 
 function select(index, { center = null } = {}) {
@@ -79,6 +98,7 @@ function select(index, { center = null } = {}) {
   hideHover();
   chat.close();
   panel.show(info, { images: imagesForStar(star) });
+  updateThen(timeOffset);
   focus.setFocus(CON_INDEX[star.con] ?? -1);
   ring.classList.remove('is-visible');
   void ring.offsetWidth;
@@ -130,8 +150,16 @@ function chatFacts(star, info) {
     origin: info.origin,
     fact: info.fact,
     position: `RA ${round(star.ra, 3)}°, Dec ${round(star.dec, 3)}°`,
+    viewing: Math.abs(timeOffset) >= 50 ? viewingFact() : null,
   };
 }
+function viewingFact() {
+  const s = field.stateAt(selected);
+  const era = formatEra(currentYear() + timeOffset);
+  const where = s.distLy != null ? `you would be ${s.distLy.toFixed(1)} light-years away and shine at magnitude ${s.mag.toFixed(1)}` : `your brightness would be magnitude ${s.mag.toFixed(1)}`;
+  return `The visitor is using a time machine and viewing the sky of ${era}. Based on your measured motion, in that year ${where}.`;
+}
+
 panel.onLookCloser = () => {
   if (current) telescope.open(current);
 };
@@ -188,12 +216,15 @@ async function loadSky() {
     return;
   }
   field = createStarField(starData, { pixelRatio: pixelRatio() });
+  field.setYears(currentYear() - EPOCH);
   scene.add(field.points);
   setupObservations();
+  addDataMoments();
+  timeButton.hidden = false;
 
   try {
     const conData = await loadJson('constellations.json');
-    constellations = createConstellations(conData);
+    constellations = createConstellations(conData, field);
     scene.add(constellations.group);
     labels = new ConstellationLabels(labelRoot, constellations.labels);
     linesToggle.hidden = false;
@@ -244,6 +275,91 @@ showIntro(document.querySelector('.intro'), {
   },
 });
 
+// Moments on the time slider that come from the catalog itself
+function addDataMoments() {
+  const f = field.fieldIndex;
+  const i = field.rows.findIndex((r) => r[f.hip] === 71683);
+  if (i < 0) return;
+  const c = field.closestApproach(i);
+  if (!c || Math.abs(EPOCH + c.t - currentYear()) > 100000) return;
+  timebar.addMoment({
+    year: Math.round((EPOCH + c.t) / 100) * 100,
+    label: `Alpha Centauri passes closest, ${c.distLy.toFixed(1)} light-years away`,
+  });
+}
+
+// Which bright star, if any, sits near the celestial pole at the shown time
+function poleStarText(year) {
+  if (!field) return '';
+  const { north } = polesAt(year);
+  let best = -1;
+  let bestAngle = Infinity;
+  const limit = Math.min(field.count, 600);
+  for (let i = 0; i < limit; i++) {
+    if (field.stateAt(i).mag > 3.6) continue;
+    const d = north.x * field.dirs[i * 3] + north.y * field.dirs[i * 3 + 1] + north.z * field.dirs[i * 3 + 2];
+    const a = Math.acos(Math.min(1, d)) * (180 / Math.PI);
+    if (a < bestAngle) {
+      bestAngle = a;
+      best = i;
+    }
+  }
+  if (best < 0 || bestAngle > 6) return 'No bright star marks the north pole of the sky.';
+  const name = describeStar(getStar(field, best)).name;
+  return `North Star: ${name}, ${bestAngle < 1 ? 'less than 1°' : `${bestAngle.toFixed(0)}°`} from the pole`;
+}
+
+let lastPoleUpdate = 0;
+function applyTime(offset, now) {
+  const year = currentYear() + offset;
+  if (appliedOffset === null || Math.abs(offset - appliedOffset) >= 0.5) {
+    appliedOffset = offset;
+    field.setYears(year - EPOCH);
+    constellations?.followStars(field.dirs);
+    // Official boundaries are a modern convention; fade them away from today
+    const away = Math.abs(offset);
+    constellations?.setBoundaryFade(1 - Math.min(1, Math.max(0, (away - 300) / 1200)));
+    updateThen(offset);
+  }
+  if (timebar.isOpen && now - lastPoleUpdate > 200) {
+    lastPoleUpdate = now;
+    timebar.render(offset, poleStarText(year));
+  }
+}
+
+function updateThen(offset) {
+  if (selected < 0) return;
+  if (Math.abs(offset) < 50) {
+    panel.setThen(null);
+    return;
+  }
+  const s = field.stateAt(selected);
+  const era = formatEra(currentYear() + offset);
+  const parts = [];
+  if (s.distLy != null) parts.push(`${s.distLy < 20 ? s.distLy.toFixed(1) : Math.round(s.distLy).toLocaleString('en-US')} light-years away`);
+  parts.push(`magnitude ${s.mag.toFixed(1)}`);
+  panel.setThen(`In ${era}: ${parts.join(', ')}.`);
+}
+
+function updatePoleMarkers() {
+  const show = timebar.isOpen;
+  const { north, south } = polesAt(currentYear() + timeOffset);
+  for (const [key, dir] of [['north', north], ['south', south]]) {
+    const node = poleMarkers[key];
+    if (!node) continue;
+    const v = dir.clone().multiplyScalar(99);
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    if (!show || v.dot(forward) <= 0) {
+      node.classList.remove('is-visible');
+      continue;
+    }
+    v.project(camera);
+    node.classList.add('is-visible');
+    node.style.transform = `translate(${((v.x * 0.5 + 0.5) * window.innerWidth).toFixed(1)}px, ${((-v.y * 0.5 + 0.5) * window.innerHeight).toFixed(1)}px)`;
+  }
+}
+
 function setupObservations() {
   const observations = resolveObservations(field);
   if (!observations.length) return;
@@ -254,7 +370,7 @@ function setupObservations() {
       document.querySelector('.panel-images')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 700);
   };
-  markers = new ObservationMarkers(document.querySelector('.markers'), observations, goTo);
+  markers = new ObservationMarkers(document.querySelector('.markers'), observations, goTo, field);
   const button = document.querySelector('.obs-button');
   new ObservationList(button, document.querySelector('.obs-list'), observations, {
     onSelect: goTo,
@@ -290,12 +406,15 @@ renderer.setAnimationLoop((time) => {
   const dt = Math.min(timer.getDelta(), 0.1);
   controls.update(dt);
   focus.update(dt);
+  timeOffset = timebar.update(dt);
+  if (field) applyTime(timeOffset, time);
   field?.update(dt, camera.fov, focus);
   milkyWay.update(dt, focus);
   constellations?.update(focus, camera.fov);
   labels?.update(camera, focus, window.innerWidth, window.innerHeight);
   markers?.update(camera, window.innerWidth, window.innerHeight, focus.dim);
   updateRing();
+  updatePoleMarkers();
   renderer.render(scene, camera);
 });
 
