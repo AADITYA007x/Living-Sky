@@ -24,6 +24,8 @@ about itself.
   Hindi constellation names, with a tanpura-like drone.
 - **Search.** Any constellation, star, asterism (like the Big Dipper), Indian name or observation.
   Press `/` or `Ctrl + K`.
+- **Guide and guided tour.** Browse stars, constellations, star patterns and observations worth knowing,
+  or take a 12-stop tour of the sky's highlights.
 - **Music.** Generated live in the browser and shaped by the star you are looking at.
 
 ## Running it on your computer
@@ -74,7 +76,8 @@ The API key lives only in Netlify. The browser talks to `/api/chat`, never to Go
 - **Plain JavaScript and three.js**, bundled with Vite. No framework.
 - `src/sky/`: rendering and astronomy (stars, constellations, Milky Way, motion, picking, controls).
 - `src/ui/`: panels, overlays, search, time machine, music controls.
-- `src/data/`: hand-written data (constellation names, curated star notes, observations, Indian lore, asterisms).
+- `src/data/`: hand-written data (constellation names, curated star notes, observations, Indian lore,
+  asterisms, the tour and guide).
 - `src/audio/`: the generative music.
 - `netlify/functions/chat.mjs`: the chat proxy that adds the star's facts and calls Gemini.
 - `scripts/`: one-time data builders.
