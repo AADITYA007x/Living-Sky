@@ -2,6 +2,7 @@
 // Slow open chords drift underneath, and soft bell tones twinkle like stars.
 // The mood follows the star you select: cool red stars sound lower and darker,
 // hot blue stars higher and brighter. No audio files, so nothing to license.
+// It keeps playing when you switch tabs; only the Music button stops it.
 
 const CHORDS = [
   [0, 7, 14, 19],
@@ -30,10 +31,9 @@ export class AmbientSound {
     this.brightness = 0.5;
     this.timers = new Set();
 
+    // Some browsers pause audio in background tabs; resume it when the tab returns
     document.addEventListener('visibilitychange', () => {
-      if (!this.ctx || !this.enabled) return;
-      if (document.hidden) this.halt();
-      else this.start();
+      if (!document.hidden && this.enabled && this.ctx?.state === 'suspended') this.ctx.resume();
     });
   }
 
