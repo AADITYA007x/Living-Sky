@@ -220,9 +220,11 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-const clock = new THREE.Clock();
-renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.1);
+const timer = new THREE.Timer();
+timer.connect(document);
+renderer.setAnimationLoop((time) => {
+  timer.update(time);
+  const dt = Math.min(timer.getDelta(), 0.1);
   controls.update(dt);
   focus.update(dt);
   field?.update(dt, camera.fov, focus);

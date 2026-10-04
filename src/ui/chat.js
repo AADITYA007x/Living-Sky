@@ -109,10 +109,12 @@ export class StarChat {
     this.render();
     this.root.classList.add('is-open');
     this.root.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('is-chatting');
     setTimeout(() => this.input.focus({ preventScroll: true }), 350);
   }
 
   close() {
+    document.body.classList.remove('is-chatting');
     this.root.classList.remove('is-open');
     this.root.setAttribute('aria-hidden', 'true');
   }
@@ -174,6 +176,7 @@ export class StarChat {
         }),
       });
       const data = await res.json().catch(() => ({}));
+      if (!res.ok) console.warn('Star chat error', res.status, data);
       reply = res.ok && data.reply
         ? { role: 'star', text: data.reply }
         : { role: 'star', text: ERRORS[data.error] ?? ERRORS.default, error: true };

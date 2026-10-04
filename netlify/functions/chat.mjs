@@ -132,15 +132,23 @@ export default async (req, context) => {
         generationConfig: { temperature: 0.8, maxOutputTokens: 2048 },
       }),
     });
-  } catch {
-    return json({ error: 'upstream_unreachable' }, 502);
+  } catch (err) {
+    console.error('Gemini unreachable', err?.message);
+    return json({ error: 'upstream_unreachable', detail: String(err?.message ?? '').slice(0, 200) }, 502);
   }
 
-  if (res.status === 429) return json({ error: 'rate_limited' }, 429);
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    console.error('Gemini error', res.status, detail.slice(0, 500));
-    return json({ error: 'upstream_error', status: res.status }, 502);
+    const raw = await res.text().catch(() => '');
+    let message = '';
+    try {
+      message = JSON.parse(raw)?.error?.message ?? '';
+    } catch {
+      message = raw;
+    }
+    console.error('Gemini error', res.status, MODEL, raw.slice(0, 800));
+    const error = res.status === 429 ? 'rate_limited' : 'upstream_error';
+    // Google's error text never contains the key, so it is safe to pass on for debugging
+    return json({ error, status: res.status, model: MODEL, detail: message.slice(0, 300) }, res.status === 429 ? 429 : 502);
   }
 
   const data = await res.json();
@@ -153,7 +161,7 @@ export default async (req, context) => {
 
   if (!reply) {
     console.error('Empty reply', candidate?.finishReason, JSON.stringify(data?.promptFeedback ?? {}));
-    return json({ error: 'empty_reply' }, 502);
+    return json({ error: 'empty_reply', model: MODEL, detail: `finishReason: ${candidate?.finishReason ?? 'none'}` }, 502);
   }
   return json({ reply });
 };
