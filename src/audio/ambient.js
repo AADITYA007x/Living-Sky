@@ -10,6 +10,12 @@ const CHORDS = [
   [-7, 0, 9, 14],
   [-5, 2, 9, 16],
 ];
+// A tanpura-like drone on Sa and Pa, used for the Indian sky
+const DRONE = [
+  [0, 7, 12, 19],
+  [0, 7, 12, 24],
+];
+// Major pentatonic, the same notes as raga Bhupali (Sa Re Ga Pa Dha)
 const SPARKLE_STEPS = [0, 2, 4, 7, 9];
 const BASE_ROOT = 73.42; // D2
 const CHORD_SECONDS = 16;
@@ -27,6 +33,7 @@ export class AmbientSound {
     this.enabled = false;
     this.running = false;
     this.scheduled = [];
+    this.indian = false;
     this.chordIndex = 0;
     this.shift = 0;
     this.brightness = 0.5;
@@ -206,7 +213,8 @@ export class AmbientSound {
   scheduleChord(t) {
     const ctx = this.ctx;
     const root = semis(BASE_ROOT, this.shift);
-    const chord = CHORDS[this.chordIndex++ % CHORDS.length];
+    const set = this.indian ? DRONE : CHORDS;
+    const chord = set[this.chordIndex++ % set.length];
     const fadeOutEnd = t + CHORD_SECONDS + FADE_SECONDS;
 
     chord.forEach((step, i) => {
@@ -293,6 +301,18 @@ export class AmbientSound {
     const root = semis(BASE_ROOT, this.shift);
     this.bell(semis(root, 24), 0.06, -0.2);
     this.bell(semis(root, 31), 0.045, 0.25, t + 0.22);
+  }
+
+  // Switch between the drifting chords and the Indian drone
+  setIndian(on) {
+    if (this.indian === on) return;
+    this.indian = on;
+    if (!this.ctx || !this.running) return;
+    const t = this.ctx.currentTime;
+    this.cancelFrom(t + 0.05);
+    this.nextChordTime = Math.max(t + 0.1, this.firstChordAfter(t));
+    this.nextSparkleTime = t + 2;
+    this.tick();
   }
 
   // When the next chord should start, keeping the chord rhythm steady

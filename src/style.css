@@ -4,6 +4,8 @@
   --dim: #8a93ab;
   --faint: #5a6380;
   --atlas: #c8b38a;
+  --deva: "Tiro Devanagari Hindi", "Noto Serif Devanagari", "Nirmala UI", serif;
+  --rose: #d9a7a0;
   --serif: "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --edge: max(1.25rem, env(safe-area-inset-left, 0px));
   --edge-r: max(1.25rem, env(safe-area-inset-right, 0px));
@@ -250,6 +252,7 @@ html, body {
 .toggle-lines,
 .obs-button,
 .time-button,
+.indian-toggle,
 .sound-toggle {
   display: inline-flex;
   align-items: center;
@@ -268,18 +271,22 @@ html, body {
 .toggle-lines[hidden],
 .obs-button[hidden],
 .time-button[hidden],
+.indian-toggle[hidden],
 .sound-toggle[hidden] { display: none; }
 .toggle-lines:hover,
 .obs-button:hover,
 .time-button:hover,
+.indian-toggle:hover,
 .sound-toggle:hover { color: var(--dim); }
 .toggle-lines[aria-pressed="true"],
 .obs-button[aria-expanded="true"],
 .time-button[aria-expanded="true"],
+.indian-toggle[aria-pressed="true"],
 .sound-toggle[aria-pressed="true"] { color: var(--atlas); border-color: rgba(200, 179, 138, 0.4); }
 .toggle-lines:focus-visible,
 .obs-button:focus-visible,
 .time-button:focus-visible,
+.indian-toggle:focus-visible,
 .sound-toggle:focus-visible { outline: 1px solid var(--atlas); outline-offset: 2px; }
 .time-button { position: relative; }
 .time-button.is-away::after {
@@ -769,6 +776,91 @@ html, body {
   will-change: transform, opacity;
   user-select: none;
 }
+
+/* Hindi constellation names */
+.con-label.is-deva {
+  font-family: var(--deva);
+  font-style: normal;
+  font-size: 1rem;
+}
+
+/* The Indian sky */
+.indian-layer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.indian-layer.is-on { opacity: var(--indian-dim, 1); }
+
+.nk-label,
+.sage-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.4rem;
+  white-space: nowrap;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.95);
+  translate: -50% 0;
+  will-change: transform;
+}
+
+.nk-label .nk-deva {
+  font-family: var(--deva);
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: var(--rose);
+}
+
+.nk-label .nk-name {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--rose);
+  opacity: 0.75;
+}
+
+.sage-label { align-items: flex-start; flex-direction: row; gap: 0.35rem; margin: -0.5rem 0 0 0.6rem; translate: 0 0; }
+.sage-label .nk-deva { font-family: var(--deva); font-size: 0.9rem; color: var(--atlas); }
+.sage-label .nk-name { font-size: 0.85rem; font-style: italic; color: var(--atlas); opacity: 0.8; }
+
+.nk-ring {
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--rose);
+  border-radius: 50%;
+  opacity: 0.45;
+  will-change: transform;
+}
+
+.nk-label.is-off,
+.sage-label.is-off,
+.nk-ring.is-off { visibility: hidden; }
+
+/* Indian lore in the star panel */
+.panel-indian { margin-top: 2.2rem; }
+
+.indian-entry {
+  margin-top: 0.8rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(217, 167, 160, 0.25);
+  border-radius: 0.9rem;
+  background: rgba(217, 167, 160, 0.04);
+}
+
+.indian-head { display: flex; align-items: baseline; gap: 0.6rem; margin: 0; }
+.indian-deva { font-family: var(--deva); font-size: 1.35rem; color: var(--rose); }
+.indian-name { font-size: 1.15rem; font-style: italic; color: var(--starlight); }
+.indian-text { margin: 0.45rem 0 0; font-size: 1.02rem; line-height: 1.5; }
+.indian-note { margin: 0.45rem 0 0; font-size: 0.85rem; line-height: 1.4; color: var(--faint); }
 
 /* Selection ring */
 .ring {
@@ -1658,5 +1750,6 @@ html, body {
   .chat, .chat.is-open { transition: none; transform: none; }
   .chat-msg { animation: none; }
   .timebar, .timebar.is-open { transition: none; transform: none; }
+  .indian-layer { transition: none; }
   .chat-msg.is-typing span { animation: none; opacity: 0.7; }
 }

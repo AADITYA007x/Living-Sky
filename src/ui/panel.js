@@ -33,7 +33,7 @@ export class StarPanel {
     return this.root.classList.contains('is-open');
   }
 
-  show(info, { images = [] } = {}) {
+  show(info, { images = [], indian = [] } = {}) {
     const r = this.root;
     r.replaceChildren();
 
@@ -100,6 +100,21 @@ export class StarPanel {
     body.append(facts);
 
     if (info.fact) body.append(el('p', 'panel-fact', info.fact));
+
+    if (indian.length) {
+      const section = el('section', 'panel-indian');
+      section.append(el('h3', 'panel-images-title', 'In the Indian sky'));
+      for (const entry of indian) {
+        const block = el('div', 'indian-entry');
+        const head = el('p', 'indian-head');
+        head.append(el('span', 'indian-deva', entry.deva), el('span', 'indian-name', entry.title));
+        block.append(head, el('p', 'indian-text', entry.text));
+        if (entry.note) block.append(el('p', 'indian-note', entry.note));
+        if (entry.source) block.append(el('p', 'indian-note', 'Star identification after Basham (1954); some traditions differ.'));
+        section.append(block);
+      }
+      body.append(section);
+    }
 
     if (images.length) {
       const section = el('section', 'panel-images');

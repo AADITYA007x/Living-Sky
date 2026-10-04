@@ -246,7 +246,7 @@ export function createConstellations(json, field = null) {
     const ci = CON_INDEX[key];
     if (ci === undefined) continue;
     for (const [ra, dec] of c.labels) {
-      labels.push({ ci, name: CONSTELLATIONS[key][0], pos: new THREE.Vector3(...raDecToVector(ra, dec, R)) });
+      labels.push({ ci, name: CONSTELLATIONS[key][0], hi: c.hi ?? null, pos: new THREE.Vector3(...raDecToVector(ra, dec, R)) });
     }
   }
 
@@ -303,6 +303,15 @@ export class ConstellationLabels {
     });
     this.v = new THREE.Vector3();
     this.forward = new THREE.Vector3();
+  }
+
+  // Show Hindi constellation names in the Indian sky
+  setIndian(on) {
+    for (const item of this.items) {
+      const deva = on && item.hi;
+      item.node.textContent = deva ? item.hi : item.name;
+      item.node.classList.toggle('is-deva', Boolean(deva));
+    }
   }
 
   update(camera, focus, width, height) {

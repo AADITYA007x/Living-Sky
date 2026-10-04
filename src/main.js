@@ -21,6 +21,8 @@ import { Meteors } from './ui/meteors.js';
 import { showIntro } from './ui/intro.js';
 import { TimeBar } from './ui/timebar.js';
 import { EPOCH, currentYear, polesAt, formatEra } from './sky/timetravel.js';
+import { resolveIndianSky } from './data/indian.js';
+import { IndianSky, indianLore } from './ui/indian.js';
 
 const canvas = document.querySelector('#sky');
 const hint = document.querySelector('.hint');
@@ -67,6 +69,9 @@ let field = null;
 let constellations = null;
 let labels = null;
 let markers = null;
+let indianSky = null;
+let indianResolved = null;
+const indianToggle = document.querySelector('.indian-toggle');
 let selected = -1;
 let current = null;
 
@@ -97,7 +102,7 @@ function select(index, { center = null } = {}) {
   sound.setStar(info.temperature);
   hideHover();
   chat.close();
-  panel.show(info, { images: imagesForStar(star) });
+  panel.show(info, { images: imagesForStar(star), indian: indianLore(indianResolved, index) });
   updateThen(timeOffset);
   focus.setFocus(CON_INDEX[star.con] ?? -1);
   ring.classList.remove('is-visible');
@@ -151,6 +156,7 @@ function chatFacts(star, info) {
     fact: info.fact,
     position: `RA ${round(star.ra, 3)}°, Dec ${round(star.dec, 3)}°`,
     viewing: Math.abs(timeOffset) >= 50 ? viewingFact() : null,
+    indian: indianLore(indianResolved, selected).map((e) => `${e.title} (${e.deva}): ${e.text}`).join(' ') || null,
   };
 }
 function viewingFact() {
@@ -219,6 +225,7 @@ async function loadSky() {
   field.setYears(currentYear() - EPOCH);
   scene.add(field.points);
   setupObservations();
+  setupIndianSky();
   addDataMoments();
   timeButton.hidden = false;
 
@@ -227,6 +234,7 @@ async function loadSky() {
     constellations = createConstellations(conData, field);
     scene.add(constellations.group);
     labels = new ConstellationLabels(labelRoot, constellations.labels);
+    labels.setIndian(indianToggle.getAttribute('aria-pressed') === 'true');
     linesToggle.hidden = false;
   } catch (err) {
     console.warn('Constellation data did not load. Run "npm run data:constellations".', err);
@@ -256,7 +264,8 @@ canvas.addEventListener('pointermove', (e) => {
       hideHover();
       return;
     }
-    const name = describeStar(getStar(field, index)).name;
+    const indianName = indianSky?.enabled ? indianSky.nameOf(index) : null;
+    const name = indianName ?? describeStar(getStar(field, index)).name;
     const p = projectToScreen(field, index, camera, window.innerWidth, window.innerHeight);
     if (!p) return hideHover();
     canvas.style.cursor = 'pointer';
@@ -274,6 +283,21 @@ showIntro(document.querySelector('.intro'), {
     setTimeout(() => hint?.classList.add('is-visible'), 600);
   },
 });
+
+// The Indian sky: nakshatras, Saptarishi and Hindi constellation names
+function setupIndianSky() {
+  indianResolved = resolveIndianSky(field);
+  indianSky = new IndianSky(document.querySelector('.indian-layer'), field, indianResolved);
+  scene.add(indianSky.ecliptic);
+  indianToggle.hidden = false;
+  indianToggle.addEventListener('click', () => {
+    const on = indianToggle.getAttribute('aria-pressed') !== 'true';
+    indianToggle.setAttribute('aria-pressed', String(on));
+    indianSky.setEnabled(on);
+    labels?.setIndian(on);
+    sound.setIndian(on);
+  });
+}
 
 // Moments on the time slider that come from the catalog itself
 function addDataMoments() {
@@ -414,6 +438,7 @@ renderer.setAnimationLoop((time) => {
   constellations?.update(focus, camera.fov);
   labels?.update(camera, focus, window.innerWidth, window.innerHeight);
   markers?.update(camera, window.innerWidth, window.innerHeight, focus.dim);
+  indianSky?.update(camera, window.innerWidth, window.innerHeight, dt, focus.dim);
   updateRing();
   updatePoleMarkers();
   renderer.render(scene, camera);

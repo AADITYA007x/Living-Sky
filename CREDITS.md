@@ -76,9 +76,16 @@ follow the changing distance. Earth's axial precession is modelled as a rotation
 around the ecliptic pole once every ~25,772 years; the slow change in the axis tilt is ignored.
 Both are good approximations for thousands of years and increasingly rough over tens of thousands.
 
+## Indian sky
+Nakshatra names, meanings, deities and star identifications follow A. L. Basham, *The Wonder That Was India*
+(1954), Appendix II, as tabulated in Wikipedia's "List of Nakshatras". The Saptarishi star names follow the
+traditional assignment listed in Wikipedia's "Saptarshi" article. Hindi constellation names come from
+d3-celestial's `constellations.json`. Traditions differ in places, and the app says so where it matters.
+Devanagari text uses the Tiro Devanagari Hindi font (SIL Open Font License), via Google Fonts.
+
 ## Music and Milky Way
 The music is generated live in the browser with the Web Audio API (`src/audio/ambient.js`); it uses no
-recordings or samples. The Milky Way glow is drawn procedurally along the real galactic plane
+recordings or samples. In the Indian sky it switches to a tanpura-like Sa–Pa drone. The Milky Way glow is drawn procedurally along the real galactic plane
 (J2000 galactic pole and centre), including the Magellanic Clouds; its brightness pattern is an
 artistic approximation, not survey data.
 

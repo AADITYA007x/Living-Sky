@@ -60,6 +60,7 @@ function buildSystemPrompt(star, today) {
     ['Notable fact', star.fact],
     ['Position (J2000)', star.position],
     ['Time machine', star.viewing],
+    ['In Indian astronomy', star.indian],
   ]
     .filter(([, v]) => v !== null && v !== undefined && v !== '')
     .map(([k, v]) => `- ${k}: ${v}`)
