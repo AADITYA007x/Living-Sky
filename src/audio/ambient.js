@@ -16,6 +16,7 @@ const CHORD_SECONDS = 16;
 const FADE_SECONDS = 7;
 const VOICE_LEVEL = 0.045;
 const MASTER_LEVEL = 0.55;
+const LOOKAHEAD_SECONDS = 90;
 
 const semis = (f, s) => f * 2 ** (s / 12);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -25,11 +26,10 @@ export class AmbientSound {
     this.ctx = null;
     this.enabled = false;
     this.running = false;
-    this.voices = [];
+    this.scheduled = [];
     this.chordIndex = 0;
     this.shift = 0;
     this.brightness = 0.5;
-    this.timers = new Set();
 
     // Some browsers pause audio in background tabs; resume it when the tab returns
     document.addEventListener('visibilitychange', () => {
@@ -45,6 +45,14 @@ export class AmbientSound {
     const AC = window.AudioContext || window.webkitAudioContext;
     const ctx = new AC();
     this.ctx = ctx;
+
+    // Diagnostics: shows in the browser console when the audio clock pauses or resumes
+    ctx.addEventListener('statechange', () => {
+      console.info(`[music] audio ${ctx.state}${document.hidden ? ' (tab hidden)' : ''}, enabled: ${this.enabled}`);
+    });
+    document.addEventListener('visibilitychange', () => {
+      console.info(`[music] tab ${document.hidden ? 'hidden' : 'visible'}, audio ${ctx.state}, queued ${this.scheduled.length}`);
+    });
 
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -18;
@@ -122,14 +130,6 @@ export class AmbientSound {
     return buffer;
   }
 
-  later(fn, ms) {
-    const id = setTimeout(() => {
-      this.timers.delete(id);
-      fn();
-    }, ms);
-    this.timers.add(id);
-  }
-
   async start() {
     if (!this.supported) return;
     if (!this.ctx) this.build();
@@ -147,8 +147,11 @@ export class AmbientSound {
     this.master.gain.linearRampToValueAtTime(MASTER_LEVEL, t + 3);
     if (!this.running) {
       this.running = true;
-      this.nextChord();
-      this.later(() => this.sparkle(), 2500);
+      this.nextChordTime = t + 0.1;
+      this.rhythmStart = this.nextChordTime;
+      this.nextSparkleTime = t + 2.5;
+      this.tick();
+      this.ticker = setInterval(() => this.tick(), 1000);
     }
   }
 
@@ -164,35 +167,63 @@ export class AmbientSound {
     }, 1700);
   }
 
-  // Stop all loops and voices immediately and pause the audio clock
+  // Stop everything immediately and pause the audio clock
   halt() {
     this.running = false;
-    for (const id of this.timers) clearTimeout(id);
-    this.timers.clear();
-    for (const v of this.voices) v.oscs.forEach((o) => o.stop());
-    this.voices = [];
+    clearInterval(this.ticker);
+    this.cancelFrom(0);
     this.ctx?.suspend();
   }
 
-  nextChord() {
+  // Music is scheduled on the audio clock well ahead of time, so it keeps
+  // playing smoothly even when the browser slows timers in background tabs.
+  tick() {
     if (!this.running) return;
+    const horizon = this.ctx.currentTime + LOOKAHEAD_SECONDS;
+    while (this.nextChordTime < horizon) {
+      this.scheduleChord(this.nextChordTime);
+      this.nextChordTime += CHORD_SECONDS;
+    }
+    while (this.nextSparkleTime < horizon) {
+      this.scheduleSparkle(this.nextSparkleTime);
+      this.nextSparkleTime += (6.5 - this.brightness * 3.5) * rand(0.5, 1.4);
+    }
+    const now = this.ctx.currentTime;
+    this.scheduled = this.scheduled.filter((n) => n.end > now);
+  }
+
+  // Cancel every chord and twinkle that has not started yet
+  cancelFrom(time) {
+    const keep = [];
+    for (const n of this.scheduled) {
+      if (n.start >= time) {
+        n.oscs.forEach((o) => {
+          try {
+            o.stop();
+          } catch {
+            // already stopped
+          }
+        });
+        n.out.disconnect();
+      } else keep.push(n);
+    }
+    this.scheduled = keep;
+  }
+
+  scheduleChord(t) {
     const ctx = this.ctx;
-    const now = ctx.currentTime;
     const root = semis(BASE_ROOT, this.shift);
     const chord = CHORDS[this.chordIndex++ % CHORDS.length];
+    const fadeOutEnd = t + CHORD_SECONDS + FADE_SECONDS;
 
-    for (const v of this.voices) {
-      v.gain.gain.cancelScheduledValues(now);
-      v.gain.gain.setValueAtTime(v.gain.gain.value, now);
-      v.gain.gain.linearRampToValueAtTime(0, now + FADE_SECONDS);
-      v.oscs.forEach((o) => o.stop(now + FADE_SECONDS + 0.2));
-    }
-
-    this.voices = chord.map((step, i) => {
+    chord.forEach((step, i) => {
       const f = semis(root, step);
+      const level = VOICE_LEVEL * (i === 0 ? 1.2 : 1);
       const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(VOICE_LEVEL * (i === 0 ? 1.2 : 1), now + FADE_SECONDS);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(level, t + FADE_SECONDS);
+      gain.gain.setValueAtTime(level, t + CHORD_SECONDS);
+      gain.gain.linearRampToValueAtTime(0, fadeOutEnd);
       const pan = ctx.createStereoPanner();
       pan.pan.value = (i / (chord.length - 1)) * 1.2 - 0.6;
       gain.connect(pan).connect(this.padFilter);
@@ -205,29 +236,26 @@ export class AmbientSound {
         o.frequency.value = f;
         o.detune.value = cents;
         o.connect(gain);
-        o.start(now);
+        o.start(t);
+        o.stop(fadeOutEnd + 0.2);
         return o;
       });
-      return { gain, oscs };
+      this.scheduled.push({ start: t, end: fadeOutEnd + 0.2, oscs, out: pan });
     });
-
-    this.later(() => this.nextChord(), CHORD_SECONDS * 1000);
   }
 
-  sparkle() {
-    if (!this.running) return;
+  scheduleSparkle(t) {
     const root = semis(BASE_ROOT, this.shift);
     const step = SPARKLE_STEPS[Math.floor(Math.random() * SPARKLE_STEPS.length)];
     const octave = Math.random() < 0.35 + this.brightness * 0.3 ? 36 : 24;
-    this.bell(semis(root, step + octave), rand(0.025, 0.05));
-    const gap = (6500 - this.brightness * 3500) * rand(0.5, 1.4);
-    this.later(() => this.sparkle(), gap);
+    this.bell(semis(root, step + octave), rand(0.025, 0.05), rand(-0.8, 0.8), t);
   }
 
-  bell(freq, level = 0.05, pan = rand(-0.8, 0.8), when = 0) {
+  // A soft bell tone at audio-clock time `at` (defaults to now)
+  bell(freq, level = 0.05, pan = rand(-0.8, 0.8), at = null) {
     if (!this.ctx || this.ctx.state !== 'running') return;
     const ctx = this.ctx;
-    const t = ctx.currentTime + when;
+    const t = at ?? ctx.currentTime;
     const env = ctx.createGain();
     env.gain.setValueAtTime(0, t);
     env.gain.linearRampToValueAtTime(level, t + 0.015);
@@ -235,11 +263,11 @@ export class AmbientSound {
     const p = ctx.createStereoPanner();
     p.pan.value = pan;
     env.connect(p).connect(this.bus);
-    [
+    const oscs = [
       [1, 1],
       [2.01, 0.25],
       [3.02, 0.08],
-    ].forEach(([ratio, amp]) => {
+    ].map(([ratio, amp]) => {
       const o = ctx.createOscillator();
       o.type = 'sine';
       o.frequency.value = freq * ratio;
@@ -248,7 +276,9 @@ export class AmbientSound {
       o.connect(g).connect(env);
       o.start(t);
       o.stop(t + 4.6);
+      return o;
     });
+    this.scheduled.push({ start: t, end: t + 4.6, oscs, out: p });
   }
 
   // Called when a star is selected: shift the mood and play a soft greeting
@@ -257,12 +287,25 @@ export class AmbientSound {
     const k = Math.log(Math.min(Math.max(temperature, 2500), 30000));
     this.brightness = (k - Math.log(2500)) / (Math.log(30000) - Math.log(2500));
     this.shift = Math.round((this.brightness - 0.5) * 10);
-    if (!this.ctx || !this.enabled) return;
+    if (!this.ctx || !this.enabled || !this.running) return;
     const t = this.ctx.currentTime;
     this.padFilter.frequency.setTargetAtTime(550 + this.brightness * 1100, t, 2);
+
+    // Replace music queued in the old mood; the current chord finishes naturally
+    this.cancelFrom(t + 0.05);
+    this.nextChordTime = Math.max(t + 0.1, this.firstChordAfter(t));
+    this.nextSparkleTime = t + 3;
+    this.tick();
+
     const root = semis(BASE_ROOT, this.shift);
     this.bell(semis(root, 24), 0.06, -0.2);
-    this.bell(semis(root, 31), 0.045, 0.25, 0.22);
+    this.bell(semis(root, 31), 0.045, 0.25, t + 0.22);
+  }
+
+  // When the next chord should start, keeping the chord rhythm steady
+  firstChordAfter(t) {
+    const elapsed = t - this.rhythmStart;
+    return this.rhythmStart + Math.ceil(elapsed / CHORD_SECONDS) * CHORD_SECONDS;
   }
 
   // A faint glint, used when a meteor crosses the sky

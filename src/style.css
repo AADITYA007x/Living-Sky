@@ -192,7 +192,7 @@ html, body {
 .status {
   position: fixed;
   left: 50%;
-  bottom: calc(1.6rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(4.8rem + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   margin: 0;
   width: max-content;
