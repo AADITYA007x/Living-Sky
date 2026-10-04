@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "data:stars": "node scripts/build-stars.mjs",
-    "data:constellations": "node scripts/build-constellations.mjs"
+    "data:constellations": "node scripts/build-constellations.mjs",
+    "data:images": "node scripts/fetch-images.mjs"
   },
   "devDependencies": {
     "vite": "^8.3.0"

@@ -17,7 +17,7 @@ export function getStar(field, index) {
     index,
     ra: get('ra'), dec: get('dec'), mag: get('mag'), ci: get('ci'), distLy: get('distLy'),
     proper: get('proper'), bayer: get('bayer'), flam: get('flam'), con: get('con'),
-    spect: get('spect'), hip: get('hip'), hd: get('hd'), id: get('id'),
+    spect: get('spect'), hip: get('hip'), hd: get('hd'), lum: get('lum'), id: get('id'),
   };
 }
 

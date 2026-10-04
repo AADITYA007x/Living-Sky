@@ -1,4 +1,5 @@
 import { formatDistance } from '../sky/describe.js';
+import { thumbnailUrl } from './gallery.js';
 
 function visibilityPhrase(mag) {
   if (mag < 1) return 'One of the brightest stars in the sky';
@@ -18,6 +19,9 @@ export class StarPanel {
   constructor(root) {
     this.root = root;
     this.onClose = null;
+    this.onLookCloser = null;
+    this.onOpenImage = null;
+    this.onTalk = null;
     this.root.setAttribute('aria-hidden', 'true');
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.isOpen) this.close();
@@ -28,7 +32,7 @@ export class StarPanel {
     return this.root.classList.contains('is-open');
   }
 
-  show(info) {
+  show(info, { images = [] } = {}) {
     const r = this.root;
     r.replaceChildren();
 
@@ -43,6 +47,22 @@ export class StarPanel {
     if (info.subtitle.length) body.append(el('p', 'panel-sub', info.subtitle.join(', in ')));
     if (info.origin) body.append(el('p', 'panel-origin', info.origin));
     if (info.lightYear) body.append(el('p', 'panel-light', info.lightYear));
+
+    const actions = el('div', 'panel-actions');
+
+    const talk = el('button', 'panel-action panel-talk');
+    talk.type = 'button';
+    talk.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 6.5h14v9H10l-4 3.5v-3.5H5z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>';
+    talk.append(el('span', null, `Talk to ${info.name}`));
+    talk.addEventListener('click', () => this.onTalk?.());
+
+    const look = el('button', 'panel-action panel-look');
+    look.type = 'button';
+    look.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg><span>Look through a telescope</span>';
+    look.addEventListener('click', () => this.onLookCloser?.());
+
+    actions.append(talk, look);
+    body.append(actions);
 
     const facts = el('dl', 'panel-facts');
     const addFact = (label, value, note) => {
@@ -67,6 +87,29 @@ export class StarPanel {
     body.append(facts);
 
     if (info.fact) body.append(el('p', 'panel-fact', info.fact));
+
+    if (images.length) {
+      const section = el('section', 'panel-images');
+      section.append(el('h3', 'panel-images-title', 'Famous observations'));
+      section.append(el('p', 'panel-images-intro', 'Photographed in detail by a major observatory.'));
+      for (const entry of images) {
+        const card = el('button', 'image-card');
+        card.type = 'button';
+        const img = el('img', 'image-card-thumb');
+        img.alt = '';
+        img.loading = 'lazy';
+        img.addEventListener('error', () => card.remove());
+        img.src = thumbnailUrl(entry);
+        const text = el('span', 'image-card-text');
+        text.append(el('span', 'image-card-title', entry.title), el('span', 'image-card-credit', entry.telescope));
+        if (entry.compare) text.append(el('span', 'image-card-badge', 'Before and after'));
+        if (!entry.hips) text.append(el('span', 'image-card-badge', 'In the sky next to this star'));
+        card.append(img, text);
+        card.addEventListener('click', () => this.onOpenImage?.(entry));
+        section.append(card);
+      }
+      body.append(section);
+    }
 
     const meta = [info.catalog, info.spect ? `spectral type ${info.spect}` : null].filter(Boolean).join(', ');
     body.append(el('p', 'panel-meta', meta));

@@ -16,24 +16,38 @@
   <body>
     <canvas id="sky" aria-label="Interactive star map"></canvas>
     <div class="labels" aria-hidden="true"></div>
+    <div class="markers"></div>
 
     <h1 class="title">Living Sky</h1>
     <p class="hint">Drag to look around, scroll or pinch to zoom, and select any star.</p>
     <p class="status" role="status"></p>
 
-    <button class="toggle-lines" type="button" aria-pressed="false" hidden>
-      <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-        <path d="M3 14l5-7 4 4 5-8" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
-        <circle cx="3" cy="14" r="1.4" fill="currentColor" />
-        <circle cx="8" cy="7" r="1.4" fill="currentColor" />
-        <circle cx="12" cy="11" r="1.4" fill="currentColor" />
-        <circle cx="17" cy="3" r="1.4" fill="currentColor" />
-      </svg>
-      <span>Constellation lines</span>
-    </button>
+    <div class="controls">
+      <button class="toggle-lines" type="button" aria-pressed="false" hidden>
+        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+          <path d="M3 14l5-7 4 4 5-8" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
+          <circle cx="3" cy="14" r="1.4" fill="currentColor" />
+          <circle cx="8" cy="7" r="1.4" fill="currentColor" />
+          <circle cx="12" cy="11" r="1.4" fill="currentColor" />
+          <circle cx="17" cy="3" r="1.4" fill="currentColor" />
+        </svg>
+        <span>Constellation lines</span>
+      </button>
+      <button class="obs-button" type="button" aria-expanded="false" aria-controls="obs-list" hidden>
+        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+          <path d="M10 2.5l1.6 5.9 5.9 1.6-5.9 1.6L10 17.5l-1.6-5.9L2.5 10l5.9-1.6z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
+        </svg>
+        <span>Famous observations</span>
+        <span class="obs-count"></span>
+      </button>
+    </div>
+    <div class="obs-list" id="obs-list" role="dialog" aria-label="Famous observations"></div>
 
     <div class="ring" aria-hidden="true"><span></span></div>
     <aside class="panel" aria-label="Star details"></aside>
+    <aside class="chat" aria-label="Conversation with the star"></aside>
+    <div class="scope" aria-hidden="true"></div>
+    <div class="gallery"></div>
 
     <p class="credits">
       <a href="https://www.astronexus.com/projects/hyg" target="_blank" rel="noopener">Stars: HYG v4.2, CC BY-SA 4.0</a>

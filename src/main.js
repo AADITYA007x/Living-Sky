@@ -8,6 +8,13 @@ import { createConstellations, ConstellationLabels } from './sky/constellations.
 import { FocusState } from './sky/focus.js';
 import { CON_INDEX } from './data/constellations.js';
 import { StarPanel } from './ui/panel.js';
+import { Telescope } from './ui/telescope.js';
+import { Gallery } from './ui/gallery.js';
+import { StarChat } from './ui/chat.js';
+import { formatDistance } from './sky/describe.js';
+import { CONSTELLATIONS } from './data/constellations.js';
+import { imagesForStar } from './data/imagery.js';
+import { resolveObservations, ObservationMarkers, ObservationList } from './ui/observations.js';
 
 const canvas = document.querySelector('#sky');
 const hint = document.querySelector('.hint');
@@ -16,6 +23,9 @@ const ring = document.querySelector('.ring');
 const labelRoot = document.querySelector('.labels');
 const linesToggle = document.querySelector('.toggle-lines');
 const panel = new StarPanel(document.querySelector('.panel'));
+const telescope = new Telescope(document.querySelector('.scope'));
+const gallery = new Gallery(document.querySelector('.gallery'));
+const chat = new StarChat(document.querySelector('.chat'));
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 const pixelRatio = () => Math.min(window.devicePixelRatio, 2);
@@ -34,19 +44,25 @@ const focus = new FocusState();
 let field = null;
 let constellations = null;
 let labels = null;
+let markers = null;
 let selected = -1;
+let current = null;
 
 const isNarrow = () => window.innerWidth < 720;
 
-function select(index) {
+function select(index, { center = null } = {}) {
   selected = index;
   const star = getStar(field, index);
-  panel.show(describeStar(star));
+  const info = describeStar(star);
+  current = { ra: star.ra, dec: star.dec, name: info.name, key: `${star.id}`, star, info };
+  chat.close();
+  panel.show(info, { images: imagesForStar(star) });
   focus.setFocus(CON_INDEX[star.con] ?? -1);
   ring.classList.remove('is-visible');
   void ring.offsetWidth;
   ring.classList.add('is-visible');
-  controls.flyTo(star.ra, star.dec, {
+  const target = center ?? { ra: star.ra, dec: star.dec };
+  controls.flyTo(target.ra, target.dec, {
     fov: Math.min(controls.targetFov, 55),
     offsetY: isNarrow() ? 0.22 : 0,
   });
@@ -54,11 +70,49 @@ function select(index) {
 
 function deselect() {
   selected = -1;
+  chat.close();
   focus.setFocus(-1);
   ring.classList.remove('is-visible');
 }
 
 panel.onClose = deselect;
+panel.onOpenImage = (entry) => gallery.open(entry);
+panel.onTalk = () => {
+  if (!current) return;
+  chat.open(current.key, {
+    name: current.info.name,
+    lightYear: current.info.lightYear,
+    facts: chatFacts(current.star, current.info),
+  });
+};
+chat.onBack = () => document.querySelector('.panel-talk')?.focus({ preventScroll: true });
+
+// The catalog facts the star is allowed to speak from
+function chatFacts(star, info) {
+  const round = (n, d = 2) => (n == null ? null : Number(n.toFixed(d)));
+  return {
+    name: info.name,
+    designation: info.subtitle[0] && info.subtitle[0] !== CONSTELLATIONS[star.con]?.[0] ? info.subtitle[0] : null,
+    constellation: CONSTELLATIONS[star.con]?.[0] ?? null,
+    catalog: info.catalog,
+    spect: star.spect,
+    type: info.type.label,
+    magnitude: round(star.mag),
+    distance: info.distance ? formatDistance(info.distance) : 'Unknown',
+    distanceNote: info.distance?.note ?? null,
+    lightYear: info.lightYear,
+    size: info.size?.text ?? null,
+    sizeNote: info.size?.note ?? null,
+    temperature: info.temperature ? `About ${Math.round(info.temperature / 100) * 100} K (estimated from color index B-V ${star.ci})` : null,
+    luminosity: star.lum != null ? `${star.lum} times the Sun` : null,
+    origin: info.origin,
+    fact: info.fact,
+    position: `RA ${round(star.ra, 3)}°, Dec ${round(star.dec, 3)}°`,
+  };
+}
+panel.onLookCloser = () => {
+  if (current) telescope.open(current);
+};
 
 // Treat a short, still press as a tap or click on the sky
 const presses = new Map();
@@ -114,6 +168,7 @@ async function loadSky() {
   field = createStarField(starData, { pixelRatio: pixelRatio() });
   scene.add(field.points);
   hint?.classList.add('is-visible');
+  setupObservations();
 
   try {
     const conData = await loadJson('constellations.json');
@@ -124,6 +179,25 @@ async function loadSky() {
   } catch (err) {
     console.warn('Constellation data did not load. Run "npm run data:constellations".', err);
   }
+}
+
+function setupObservations() {
+  const observations = resolveObservations(field);
+  if (!observations.length) return;
+  const goTo = (obs) => {
+    // Centre the view on the object itself; the panel shows its nearest bright star
+    select(obs.index, { center: { ra: obs.ra, dec: obs.dec } });
+    setTimeout(() => {
+      document.querySelector('.panel-images')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 700);
+  };
+  markers = new ObservationMarkers(document.querySelector('.markers'), observations, goTo);
+  const button = document.querySelector('.obs-button');
+  new ObservationList(button, document.querySelector('.obs-list'), observations, {
+    onSelect: goTo,
+    onToggleMarkers: (on) => markers.setVisible(on),
+  });
+  button.hidden = false;
 }
 
 function updateRing() {
@@ -154,6 +228,7 @@ renderer.setAnimationLoop(() => {
   field?.update(dt, camera.fov, focus);
   constellations?.update(focus, camera.fov);
   labels?.update(camera, focus, window.innerWidth, window.innerHeight);
+  markers?.update(camera, window.innerWidth, window.innerHeight, focus.dim);
   updateRing();
   renderer.render(scene, camera);
 });
