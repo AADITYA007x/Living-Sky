@@ -3,16 +3,14 @@ import './style.css';
 import { createStarField } from './sky/stars.js';
 import { SkyControls } from './sky/controls.js';
 import { pickStar, projectToScreen } from './sky/picking.js';
-import { getStar, describeStar } from './sky/describe.js';
+import { getStar, describeStar, formatDistance } from './sky/describe.js';
 import { createConstellations, ConstellationLabels } from './sky/constellations.js';
 import { FocusState } from './sky/focus.js';
-import { CON_INDEX, ENGLISH, ALIASES } from './data/constellations.js';
+import { CONSTELLATIONS, CON_INDEX, ENGLISH, ALIASES } from './data/constellations.js';
 import { StarPanel } from './ui/panel.js';
 import { Telescope } from './ui/telescope.js';
 import { Gallery } from './ui/gallery.js';
 import { StarChat } from './ui/chat.js';
-import { formatDistance } from './sky/describe.js';
-import { CONSTELLATIONS } from './data/constellations.js';
 import { imagesForStar } from './data/imagery.js';
 import { resolveObservations, ObservationMarkers, ObservationList } from './ui/observations.js';
 import { createMilkyWay } from './sky/milkyway.js';
@@ -302,7 +300,7 @@ const conToast = document.querySelector('.con-toast');
 let toastTimer = 0;
 function hideConToast() {
   conToast.classList.remove('is-visible');
-  clearPattern?.();
+  clearPattern();
 }
 
 const toRaDec = (v) => ({
