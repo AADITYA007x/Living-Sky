@@ -12,7 +12,7 @@ import { Telescope } from './ui/telescope.js';
 import { Gallery } from './ui/gallery.js';
 import { StarChat } from './ui/chat.js';
 import { imagesForStar } from './data/imagery.js';
-import { resolveObservations, ObservationMarkers, ObservationList } from './ui/observations.js';
+import { resolveObservations, ObservationMarkers } from './ui/observations.js';
 import { createMilkyWay } from './sky/milkyway.js';
 import { AmbientSound } from './audio/ambient.js';
 import { Meteors } from './ui/meteors.js';
@@ -24,6 +24,8 @@ import { IndianSky, indianLore } from './ui/indian.js';
 import { SkySearch, normalize } from './ui/search.js';
 import { raDecToVector } from './sky/astro.js';
 import { resolveAsterisms } from './data/asterisms.js';
+import { TOUR, HIGHLIGHTS } from './data/tour.js';
+import { GuideList, TourCard } from './ui/guide.js';
 
 const canvas = document.querySelector('#sky');
 const hint = document.querySelector('.hint');
@@ -289,9 +291,13 @@ canvas.addEventListener('pointerleave', hideHover);
 canvas.addEventListener('pointerdown', hideHover);
 
 showIntro(document.querySelector('.intro'), {
-  onBegin: (withSound) => {
+  onBegin: (withSound, withTour) => {
     if (withSound) setSound(true);
-    setTimeout(() => hint?.classList.add('is-visible'), 600);
+    if (withTour) {
+      // Wait for the stars to load before starting the tour
+      const wait = () => (tour ? setTimeout(startTour, 900) : setTimeout(wait, 200));
+      wait();
+    } else setTimeout(() => hint?.classList.add('is-visible'), 600);
   },
 });
 
@@ -308,7 +314,7 @@ const toRaDec = (v) => ({
   dec: (Math.asin(Math.max(-1, Math.min(1, v.y))) * 180) / Math.PI,
 });
 
-function showConstellation(abbr) {
+function showConstellation(abbr, { toast = true, view = null } = {}) {
   const c = conDataRef?.constellations?.[abbr];
   const ci = CON_INDEX[abbr];
   if (!c || ci === undefined) return;
@@ -319,7 +325,12 @@ function showConstellation(abbr) {
   const { ra, dec } = toRaDec(center);
   panel.close();
   focus.setFocus(ci);
-  controls.flyTo(ra, dec, { fov: Math.min(100, Math.max(18, radius * 2.3)), offsetY: timebar.isOpen ? 0.12 : 0 });
+  controls.flyTo(ra, dec, {
+    fov: Math.min(100, Math.max(18, radius * 2.3 * (view?.fovScale ?? 1))),
+    offsetY: view?.offsetY ?? (timebar.isOpen ? 0.12 : 0),
+    offsetX: view?.offsetX ?? 0,
+  });
+  if (!toast) return;
 
   const f = field.fieldIndex;
   const brightest = field.rows.findIndex((r) => r[f.con] === abbr);
@@ -352,17 +363,22 @@ function clearPattern() {
   clearTimeout(patternTimer);
 }
 
-function showAsterism(a) {
-  const dirs = a.indices.map((i) => new THREE.Vector3().fromArray(field.dirs, i * 3));
+// Fly to a group of stars and ring them gently
+function showStars(indices, con, { minFov = 8, view = null } = {}) {
+  const dirs = indices.map((i) => new THREE.Vector3().fromArray(field.dirs, i * 3));
   const center = dirs.reduce((s, d) => s.add(d), new THREE.Vector3()).normalize();
   const radius = Math.max(...dirs.map((d) => center.angleTo(d))) * (180 / Math.PI);
   const { ra, dec } = toRaDec(center);
   panel.close();
-  focus.setFocus(a.con ? CON_INDEX[a.con] ?? -1 : -1);
-  controls.flyTo(ra, dec, { fov: Math.min(100, Math.max(8, radius * 2 * 2.4)), offsetY: timebar.isOpen ? 0.12 : 0 });
+  focus.setFocus(con ? CON_INDEX[con] ?? -1 : -1);
+  controls.flyTo(ra, dec, {
+    fov: Math.min(100, Math.max(minFov, radius * 2 * 2.4 * (view?.fovScale ?? 1))),
+    offsetY: view?.offsetY ?? (timebar.isOpen ? 0.12 : 0),
+    offsetX: view?.offsetX ?? 0,
+  });
 
   patternLayer.replaceChildren();
-  patternRings = a.indices.map((index) => {
+  patternRings = indices.map((index) => {
     const node = document.createElement('span');
     node.className = 'pattern-ring';
     patternLayer.append(node);
@@ -371,7 +387,10 @@ function showAsterism(a) {
   patternLayer.classList.add('is-visible');
   clearTimeout(patternTimer);
   patternTimer = setTimeout(clearPattern, 9000);
+}
 
+function showAsterism(a) {
+  showStars(a.indices, a.con);
   conToast.innerHTML = '<p class="con-toast-name"></p><p class="con-toast-sub"></p><p class="con-toast-note"></p>';
   conToast.querySelector('.con-toast-name').textContent = a.name;
   conToast.querySelector('.con-toast-sub').textContent = a.con ? `A star pattern in ${CONSTELLATIONS[a.con][0]}` : 'A star pattern across constellations';
@@ -574,6 +593,100 @@ function updatePoleMarkers() {
 
 let goToObservation = null;
 
+// Guide and guided tour
+const hipIndex = (hip) => {
+  const f = field.fieldIndex;
+  return field.rows.findIndex((r) => r[f.hip] === hip);
+};
+const brightestIn = (abbr) => {
+  const f = field.fieldIndex;
+  return field.rows.findIndex((r) => r[f.con] === abbr);
+};
+
+let tour = null;
+
+function setupGuide(observations) {
+  const asterisms = resolveAsterisms(field);
+  const sections = HIGHLIGHTS.map((section) => {
+    let items;
+    if (section.items === 'asterisms') {
+      items = asterisms.map((a) => ({ kind: 'asterism', label: a.name, sub: a.con ? `In ${CONSTELLATIONS[a.con][0]}` : 'Across constellations', asterism: a }));
+    } else if (section.items === 'observations') {
+      items = observations.map((o) => ({ kind: 'observation', label: o.entry.short, sub: o.entry.telescope, obs: o, thumb: o.entry }));
+    } else {
+      items = section.items
+        .map((it) => (it.kind === 'star' ? { ...it, index: hipIndex(it.hip) } : it))
+        .filter((it) => it.kind !== 'star' || it.index >= 0);
+    }
+    return { title: section.title, items };
+  });
+
+  const button = document.querySelector('.guide-button');
+  new GuideList(button, document.querySelector('.guide-list'), sections, {
+    onPick: (item) => {
+      hideConToast();
+      if (item.kind === 'star') select(item.index);
+      else if (item.kind === 'constellation') showConstellation(item.abbr);
+      else if (item.kind === 'asterism') showAsterism(item.asterism);
+      else if (item.kind === 'observation') goToObservation?.(item.obs);
+    },
+    onTour: () => startTour(),
+    onToggleMarkers: (on) => markers.setVisible(on),
+  });
+  button.hidden = false;
+
+  const stops = TOUR.map((stop) => {
+    if (stop.kind === 'star') return { ...stop, index: hipIndex(stop.hip) };
+    if (stop.kind === 'asterism') return { ...stop, asterism: asterisms.find((a) => a.name === stop.name) };
+    if (stop.kind === 'observation') return { ...stop, obs: observations.find((o) => o.entry.id === stop.id) };
+    return stop;
+  }).filter((s) => (s.kind === 'star' ? s.index >= 0 : s.kind === 'asterism' ? s.asterism : s.kind === 'observation' ? s.obs : true));
+
+  // Keep each stop clear of the tour card: beside it on wide screens, above it on narrow ones
+  const tourView = () =>
+    window.innerWidth >= 900 ? { offsetX: 0.18, offsetY: 0, fovScale: 1.35 } : { offsetX: 0, offsetY: 0.24, fovScale: 1.25 };
+
+  tour = new TourCard(document.querySelector('.tour'), stops, {
+    onStop: (stop) => {
+      hideConToast();
+      sound.glint();
+      const view = tourView();
+      if (stop.kind === 'constellation') showConstellation(stop.abbr, { toast: false, view });
+      else if (stop.kind === 'star') showStars([stop.index], field.rows[stop.index][field.fieldIndex.con], { minFov: 40, view });
+      else if (stop.kind === 'asterism') showStars(stop.asterism.indices, stop.asterism.con, { view });
+      else if (stop.kind === 'observation') {
+        panel.close();
+        focus.setFocus(-1);
+        markers.setVisible(true);
+        controls.flyTo(stop.obs.ra, stop.obs.dec, { fov: 28, offsetX: view.offsetX, offsetY: view.offsetY });
+      } else {
+        panel.close();
+        focus.setFocus(-1);
+        controls.flyTo(84, 2, { fov: 75, offsetX: view.offsetX, offsetY: view.offsetY });
+      }
+    },
+    onMore: (stop) => {
+      if (stop.kind === 'star') select(stop.index);
+      else if (stop.kind === 'observation') goToObservation?.(stop.obs);
+      else if (stop.kind === 'constellation') {
+        const i = brightestIn(stop.abbr);
+        if (i >= 0) select(i);
+      }
+    },
+    onEnd: () => {
+      clearPattern();
+      if (selected < 0) focus.setFocus(-1);
+    },
+  });
+}
+
+function startTour() {
+  if (!tour) return;
+  if (timebar.isOpen) timebar.close();
+  hint?.classList.add('is-hidden');
+  tour.start();
+}
+
 function setupObservations() {
   const observations = resolveObservations(field);
   observationsRef = observations;
@@ -587,12 +700,7 @@ function setupObservations() {
   };
   goToObservation = goTo;
   markers = new ObservationMarkers(document.querySelector('.markers'), observations, goTo, field);
-  const button = document.querySelector('.obs-button');
-  new ObservationList(button, document.querySelector('.obs-list'), observations, {
-    onSelect: goTo,
-    onToggleMarkers: (on) => markers.setVisible(on),
-  });
-  button.hidden = false;
+  setupGuide(observations);
 }
 
 function updateRing() {

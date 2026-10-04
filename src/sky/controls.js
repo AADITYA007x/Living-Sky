@@ -50,9 +50,16 @@ export class SkyControls {
 
   // Smoothly turn the view so (raDeg, decDeg) sits at the given screen offset.
   // offsetY is a fraction of the field of view (positive = target appears higher).
-  flyTo(raDeg, decDeg, { fov = null, offsetY = 0, duration = 1.4 } = {}) {
+  // offsetX is a fraction of the screen width (positive = target appears further right).
+  flyTo(raDeg, decDeg, { fov = null, offsetY = 0, offsetX = 0, duration = 1.4 } = {}) {
     const endFov = fov ?? this.targetFov;
     let endLon = raDeg * DEG;
+    if (offsetX) {
+      const halfH = Math.atan(Math.tan((endFov * DEG) / 2) * this.camera.aspect);
+      const angle = Math.atan(2 * offsetX * Math.tan(halfH));
+      // East is to the left, so looking left of the target means a larger RA
+      endLon += angle / Math.max(0.25, Math.cos(decDeg * DEG));
+    }
     const endLat = clampLat(decDeg * DEG - offsetY * endFov * DEG);
     let dLon = endLon - this.lon;
     dLon = ((dLon + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
